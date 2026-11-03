@@ -6,6 +6,11 @@ import Observation
 @MainActor
 @Observable
 final class PerAppVolumeController {
+    enum DriverOperation: Equatable {
+        case install
+        case uninstall
+    }
+
     static let driverUID = "com.bhs.vslight.driver.device"
     static let driverInputUID = "com.bhs.vslight.driver.input"
     static let appVolumesSelector: AudioObjectPropertySelector = 0x6170766C
@@ -15,9 +20,16 @@ final class PerAppVolumeController {
     let loopback = LoopbackEngine()
 
     private(set) var driverInstalled = false
-    private(set) var isDriverBusy = false
+    /// 진행 중인 드라이버 작업. nil이면 대기 상태다.
+    private(set) var driverOperation: DriverOperation?
+    /// 현재 드라이버 작업 단계(0...5). 설치·제거 모두 6단계다.
+    private(set) var driverStep = 0
     private(set) var lastError: String?
     @ObservationIgnored private var applyTask: Task<Void, Never>?
+
+    var isDriverBusy: Bool {
+        driverOperation != nil
+    }
 
     var driverFilesPresent: Bool {
         let system = "/Library/Audio/Plug-Ins/HAL/VSLightAudioDriver.driver"
@@ -62,7 +74,7 @@ final class PerAppVolumeController {
 
     func refresh() {
         audio.refreshProcesses()
-        driverInstalled = audio.devices.contains { $0.uid == Self.driverUID }
+        driverInstalled = hasDriverDevices()
         if isEnabled, !driverInstalled {
             store.settings.perAppEnabled = false
             restoreOutputStateIfNeeded()
@@ -220,16 +232,53 @@ final class PerAppVolumeController {
     }
 
     func installDriver() {
-        guard !isDriverBusy else {
+        guard driverOperation == nil else {
             return
         }
-        guard let source = driverSourceURL() else {
+        guard driverSourceURL() != nil else {
             lastError = String(localized: "드라이버 번들이 앱에 없습니다. Scripts/build-driver.sh를 실행하세요.")
             return
         }
 
-        isDriverBusy = true
         lastError = nil
+        driverOperation = .install
+        driverStep = 0
+        Task { @MainActor [weak self] in
+            await self?.performInstall()
+        }
+    }
+
+    func uninstallDriver() {
+        guard driverOperation == nil else {
+            return
+        }
+
+        lastError = nil
+        driverOperation = .uninstall
+        driverStep = 0
+        Task { @MainActor [weak self] in
+            await self?.performUninstall()
+        }
+    }
+
+    private func performInstall() async {
+        defer { finishDriverOperation() }
+
+        driverStep = 0
+        await Task.yield()
+
+        driverStep = 1
+        if isEnabled {
+            setEnabled(false)
+        }
+        await Task.yield()
+
+        driverStep = 2
+        guard let source = driverSourceURL() else {
+            lastError = String(localized: "드라이버 번들이 앱에 없습니다. Scripts/build-driver.sh를 실행하세요.")
+            return
+        }
+        let previousDevices = driverDeviceIDs()
         let command = [
             "mkdir -p '/Library/Audio/Plug-Ins/HAL'",
             "rm -rf '/Library/Audio/Plug-Ins/HAL/VSLightAudioDriver.driver'",
@@ -237,35 +286,42 @@ final class PerAppVolumeController {
             "killall coreaudiod || true"
         ].joined(separator: "; ")
 
-        guard runPrivileged(command, errorMessage: String(localized: "드라이버 설치에 실패했습니다.")) else {
-            isDriverBusy = false
+        guard await runPrivileged(command, errorMessage: String(localized: "드라이버 설치에 실패했습니다.")) else {
             return
         }
 
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(1500))
-            guard let self else {
-                return
-            }
-            self.audio.refresh()
-            self.driverInstalled = self.audio.devices.contains { $0.uid == Self.driverUID }
-            if !self.driverInstalled {
-                self.lastError = String(localized: "드라이버가 아직 감지되지 않습니다. coreaudiod를 다시 시작한 뒤 다시 확인하세요.")
-            }
-            self.isDriverBusy = false
+        driverStep = 3
+        try? await Task.sleep(for: .milliseconds(250))
+
+        driverStep = 4
+        let installed = await waitForDriverInstalled(previous: previousDevices)
+        guard installed else {
+            lastError = String(localized: "드라이버가 아직 감지되지 않습니다. coreaudiod를 다시 시작한 뒤 다시 확인하세요.")
+            return
         }
+        driverInstalled = true
+        await Task.yield()
+
+        driverStep = 5
+        refresh()
+        await Task.yield()
     }
 
-    func uninstallDriver() {
-        guard !isDriverBusy else {
-            return
-        }
+    private func performUninstall() async {
+        defer { finishDriverOperation() }
 
-        setEnabled(false)
+        driverStep = 0
+        loopback.stop()
+        store.settings.perAppEnabled = false
+        await Task.yield()
+
+        driverStep = 1
+        restoreOutputStateIfNeeded()
+        audio.refresh()
         recoverIfNeeded()
-        isDriverBusy = true
-        lastError = nil
+        await Task.yield()
 
+        driverStep = 2
         let userDriver = NSHomeDirectory() + "/Library/Audio/Plug-Ins/HAL/VSLightAudioDriver.driver"
         let command = [
             "rm -rf '/Library/Audio/Plug-Ins/HAL/VSLightAudioDriver.driver'",
@@ -273,26 +329,31 @@ final class PerAppVolumeController {
             "killall coreaudiod || true"
         ].joined(separator: "; ")
 
-        guard runPrivileged(command, errorMessage: String(localized: "드라이버 제거에 실패했습니다.")) else {
-            isDriverBusy = false
+        guard await runPrivileged(command, errorMessage: String(localized: "드라이버 제거에 실패했습니다.")) else {
             return
         }
 
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(1800))
-            guard let self else {
-                return
-            }
-            self.audio.refresh()
-            self.driverInstalled = self.audio.devices.contains { $0.uid == Self.driverUID }
-            if self.driverInstalled || self.driverFilesPresent {
-                self.lastError = String(localized: "드라이버가 아직 남아 있습니다. coreaudiod를 다시 시작한 뒤 다시 확인하세요.")
-            } else {
-                self.clearPerAppSettings()
-                self.lastError = nil
-            }
-            self.isDriverBusy = false
+        driverStep = 3
+        try? await Task.sleep(for: .milliseconds(250))
+
+        driverStep = 4
+        let removed = await waitForDriverRemoved()
+        guard removed else {
+            lastError = String(localized: "드라이버가 아직 남아 있습니다. coreaudiod를 다시 시작한 뒤 다시 확인하세요.")
+            return
         }
+        driverInstalled = false
+        await Task.yield()
+
+        driverStep = 5
+        clearPerAppSettings()
+        lastError = nil
+        await Task.yield()
+    }
+
+    private func finishDriverOperation() {
+        driverOperation = nil
+        driverStep = 0
     }
 
     private func clearPerAppSettings() {
@@ -302,6 +363,55 @@ final class PerAppVolumeController {
         store.settings.perAppMonitorUID = nil
         store.settings.perAppPreviousOutputVolume = nil
         store.settings.perAppPreviousOutputMuted = nil
+    }
+
+    private func driverOutputPresent() -> Bool {
+        audio.devices.contains { $0.uid == Self.driverUID }
+    }
+
+    private func driverInputPresent() -> Bool {
+        AudioDevice.deviceID(forUID: Self.driverInputUID) != nil
+    }
+
+    private func hasDriverDevices() -> Bool {
+        driverOutputPresent() && driverInputPresent()
+    }
+
+    private func driverDeviceIDs() -> (output: AudioObjectID?, input: AudioObjectID?) {
+        (
+            audio.devices.first { $0.uid == Self.driverUID }?.id,
+            AudioDevice.deviceID(forUID: Self.driverInputUID)
+        )
+    }
+
+    private func waitForDriverInstalled(
+        previous: (output: AudioObjectID?, input: AudioObjectID?)
+    ) async -> Bool {
+        for _ in 0..<18 {
+            try? await Task.sleep(for: .milliseconds(100))
+            audio.refresh()
+            let current = driverDeviceIDs()
+            guard let output = current.output, let input = current.input else {
+                continue
+            }
+            if output != previous.output || input != previous.input {
+                return true
+            }
+        }
+        audio.refresh()
+        return hasDriverDevices()
+    }
+
+    private func waitForDriverRemoved() async -> Bool {
+        for _ in 0..<18 {
+            try? await Task.sleep(for: .milliseconds(100))
+            audio.refresh()
+            if !driverOutputPresent(), !driverInputPresent(), !driverFilesPresent {
+                return true
+            }
+        }
+        audio.refresh()
+        return !driverOutputPresent() && !driverInputPresent() && !driverFilesPresent
     }
 
     private func driverSourceURL() -> URL? {
@@ -379,20 +489,43 @@ final class PerAppVolumeController {
         store.settings.perAppPreviousOutputMuted = nil
     }
 
-    private func runPrivileged(_ command: String, errorMessage: String) -> Bool {
+    private func runPrivileged(_ command: String, errorMessage: String) async -> Bool {
         lastError = nil
-        let escaped = command
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-        let script = "do shell script \"" + escaped + "\" with administrator privileges"
-        var error: NSDictionary?
-        NSAppleScript(source: script)?.executeAndReturnError(&error)
-        if let error {
-            let detail = error[NSAppleScript.errorMessage] as? String ?? ""
-            lastError = "\(errorMessage) \(detail)"
+        let result = await Self.runPrivilegedScript(command)
+        guard result.status == 0 else {
+            let detail = result.stderr.isEmpty ? "" : " \(result.stderr)"
+            lastError = errorMessage + detail
             return false
         }
         return true
+    }
+
+    private nonisolated static func runPrivilegedScript(_ command: String) async -> (status: Int32, stderr: String) {
+        await Task.detached(priority: .userInitiated) { () -> (status: Int32, stderr: String) in
+            let escaped = command
+                .replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "\"", with: "\\\"")
+            let script = "do shell script \"" + escaped + "\" with administrator privileges"
+
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+            process.arguments = ["-e", script]
+            let errorPipe = Pipe()
+            process.standardError = errorPipe
+            process.standardOutput = FileHandle.nullDevice
+
+            do {
+                try process.run()
+            } catch {
+                return (status: 1, stderr: error.localizedDescription)
+            }
+
+            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+            let stderr = String(data: errorData, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return (status: process.terminationStatus, stderr: stderr)
+        }.value
     }
 
     private func escape(_ value: String) -> String {

@@ -77,6 +77,15 @@ struct PerAppAudioView: View {
                     }
                 }
 
+                if let operation = model.perApp.driverOperation {
+                    VStack(alignment: .leading, spacing: 5) {
+                        ForEach(Array(driverSteps(for: operation).enumerated()), id: \.offset) { index, title in
+                            driverStepRow(index: index, title: title)
+                        }
+                    }
+                    .padding(.leading, 4)
+                }
+
                 Text("앱별 게인은 시스템 출력과 모니터 출력 사이를 오가는 HAL 드라이버가 담당합니다. 설치는 관리자 승인이 필요하며 coreaudiod가 재시작됩니다.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -88,8 +97,13 @@ struct PerAppAudioView: View {
     }
 
     private var driverStatusText: String {
-        if model.perApp.isDriverBusy {
-            return String(localized: "드라이버 작업 중...")
+        if let operation = model.perApp.driverOperation {
+            switch operation {
+            case .install:
+                return String(localized: "드라이버 설치 중...")
+            case .uninstall:
+                return String(localized: "드라이버 제거 중...")
+            }
         }
         if model.perApp.driverInstalled {
             return String(localized: "가상 오디오 드라이버 설치됨")
@@ -98,6 +112,55 @@ struct PerAppAudioView: View {
             return String(localized: "드라이버 파일이 남아 있습니다")
         }
         return String(localized: "가상 오디오 드라이버가 필요합니다")
+    }
+
+    private func driverSteps(for operation: PerAppVolumeController.DriverOperation) -> [String] {
+        switch operation {
+        case .install:
+            return [
+                String(localized: "드라이버 설치 준비"),
+                String(localized: "기존 상태 정리"),
+                String(localized: "드라이버 파일 설치"),
+                String(localized: "coreaudiod 재시작"),
+                String(localized: "드라이버 감지"),
+                String(localized: "설정 새로 고침")
+            ]
+        case .uninstall:
+            return [
+                String(localized: "앱별 볼륨 중지"),
+                String(localized: "출력 및 볼륨 복원"),
+                String(localized: "드라이버 파일 제거"),
+                String(localized: "coreaudiod 재시작"),
+                String(localized: "드라이버 제거 확인"),
+                String(localized: "앱별 설정 정리")
+            ]
+        }
+    }
+
+    private func driverStepRow(index: Int, title: String) -> some View {
+        let isCurrent = index == model.perApp.driverStep
+        return HStack(spacing: 6) {
+            if index < model.perApp.driverStep {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+                    .frame(width: 12, height: 12)
+            } else if isCurrent {
+                ProgressView()
+                    .controlSize(.small)
+                    .frame(width: 12, height: 12)
+            } else {
+                Image(systemName: "circle")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 12, height: 12)
+            }
+
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(isCurrent ? .primary : .secondary)
+                .fontWeight(isCurrent ? .semibold : .regular)
+        }
     }
 
     private var controlsSection: some View {
