@@ -3,12 +3,18 @@ import SwiftUI
 struct OutputDeviceMenu: View {
     @Environment(AppModel.self) private var model
 
+    private var availableDevices: [AudioDevice] {
+        model.audio.devices.filter { device in
+            device.uid != PerAppVolumeController.driverUID || model.perApp.isEnabled
+        }
+    }
+
     var body: some View {
         Menu {
-            if model.audio.devices.isEmpty {
+            if availableDevices.isEmpty {
                 Text("출력 장치 없음")
             } else {
-                ForEach(model.audio.devices) { device in
+                ForEach(availableDevices) { device in
                     Button {
                         model.select(device)
                     } label: {

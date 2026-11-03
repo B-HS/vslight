@@ -14,7 +14,7 @@ settings:
     CODE_SIGN_IDENTITY: "-"
     DEVELOPMENT_TEAM: ""
     ENABLE_HARDENED_RUNTIME: YES
-    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
     DEAD_CODE_STRIPPING: YES
 targets:
   VSLight:
@@ -35,6 +35,16 @@ targets:
         LD_RUNPATH_SEARCH_PATHS:
           - "$(inherited)"
           - "@executable_path/../Frameworks"
+    postBuildScripts:
+      - name: Copy Audio Driver
+        basedOnDependencyAnalysis: false
+        script: |
+          DRIVER="${SRCROOT}/Driver/build/VSLightAudioDriver.driver"
+          if [ -d "$DRIVER" ]; then
+            DEST="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/VSLightAudioDriver.driver"
+            rm -rf "$DEST"
+            cp -R "$DRIVER" "$DEST"
+          fi
   VSLightTests:
     type: bundle.unit-test
     platform: macOS

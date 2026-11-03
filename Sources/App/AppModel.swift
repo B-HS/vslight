@@ -49,19 +49,19 @@ enum LaunchAtLoginState: Equatable {
 
     var label: String {
         switch self {
-        case .enabled: "로그인 시 자동 실행 켜짐"
-        case .requiresApproval: "시스템 설정 승인 필요"
-        case .notRegistered: "로그인 시 자동 실행 꺼짐"
-        case .notFound: "설치 위치 확인 필요"
+        case .enabled: String(localized: "로그인 시 자동 실행 켜짐")
+        case .requiresApproval: String(localized: "시스템 설정 승인 필요")
+        case .notRegistered: String(localized: "로그인 시 자동 실행 꺼짐")
+        case .notFound: String(localized: "설치 위치 확인 필요")
         }
     }
 
     var detail: String? {
         switch self {
         case .enabled: nil
-        case .requiresApproval: "시스템 설정 > 일반 > 로그인 항목에서 VSLight를 허용하세요."
+        case .requiresApproval: String(localized: "시스템 설정 > 일반 > 로그인 항목에서 VSLight를 허용하세요.")
         case .notRegistered: nil
-        case .notFound: "로그인 항목은 /Applications에 설치된 VSLight에서 등록할 수 있습니다."
+        case .notFound: String(localized: "로그인 항목은 /Applications에 설치된 VSLight에서 등록할 수 있습니다.")
         }
     }
 
@@ -82,6 +82,7 @@ final class AppModel {
     let store: SettingsStore
     let hotkeys: HotkeyManager
     let lifecycle: SystemLifecycle
+    let perApp: PerAppVolumeController
 
     var settingsTab: SettingsTab = .general
     var launchAtLoginState: LaunchAtLoginState = .notRegistered
@@ -103,6 +104,7 @@ final class AppModel {
         self.store = store
         self.hotkeys = hotkeys
         self.lifecycle = lifecycle
+        self.perApp = PerAppVolumeController(audio: audio, store: store)
         hotkeys.onTrigger = { [weak self] presetID in
             self?.applyPreset(id: presetID)
         }
@@ -134,6 +136,7 @@ final class AppModel {
         hasStarted = true
         hotkeys.start()
         audio.start()
+        perApp.start()
         lifecycle.start()
         applyHotkeys()
         restoreOutputDevice()
@@ -155,6 +158,7 @@ final class AppModel {
         loginRefreshTask = nil
         lifecycle.stop()
         hotkeys.stop()
+        perApp.stop()
         audio.stop()
         store.flush()
     }
@@ -168,6 +172,9 @@ final class AppModel {
     }
 
     func select(_ device: AudioDevice) {
+        if perApp.isEnabled, device.uid != PerAppVolumeController.driverUID {
+            perApp.setEnabled(false)
+        }
         audio.select(device)
         store.settings.lastOutputDeviceUID = device.uid
     }
@@ -218,7 +225,7 @@ final class AppModel {
             }
         } catch {
             refreshLaunchAtLoginState()
-            lastErrorMessage = "로그인 항목을 변경하지 못했습니다. \(error.localizedDescription)"
+            lastErrorMessage = String(localized: "로그인 항목을 변경하지 못했습니다.") + " \(error.localizedDescription)"
         }
     }
 
@@ -253,7 +260,7 @@ final class AppModel {
         } catch {
             hotkeys.start()
             applyHotkeys()
-            lastErrorMessage = "앱을 다시 시작하지 못했습니다. \(error.localizedDescription)"
+            lastErrorMessage = String(localized: "앱을 다시 시작하지 못했습니다.") + " \(error.localizedDescription)"
             return
         }
         NSApplication.shared.terminate(nil)
@@ -269,6 +276,7 @@ final class AppModel {
     private func handleWake() {
         refreshLaunchAtLoginState()
         audio.restartMonitoring()
+        perApp.refresh()
         applyHotkeys()
         wakeTask?.cancel()
         wakeTask = Task { @MainActor [weak self] in
@@ -277,6 +285,7 @@ final class AppModel {
                 return
             }
             self.audio.scheduleRefresh()
+            self.perApp.refresh()
             self.applyHotkeys()
             self.refreshLaunchAtLoginState()
         }
@@ -284,6 +293,7 @@ final class AppModel {
 
     private func handleActivate() {
         refreshLaunchAtLoginState()
+        perApp.refresh()
         if !hotkeys.failures.isEmpty {
             applyHotkeys()
         }

@@ -36,6 +36,9 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
 
+      - name: Build audio driver
+        run: ./Scripts/build-driver.sh
+
       - name: Check version policy
         run: bash Scripts/check-version.sh
 

@@ -136,6 +136,11 @@ jobs:
             | grep -o '"Developer ID Application: [^"]*"' | head -n1 | tr -d '"')"
           echo "identity=$IDENTITY" >> "$GITHUB_OUTPUT"
 
+      - name: Build audio driver
+        env:
+          CODESIGN_ID: ${{ steps.sign.outputs.identity }}
+        run: ./Scripts/build-driver.sh
+
       - name: Build release app
         env:
           VERSION: ${{ steps.version.outputs.version }}

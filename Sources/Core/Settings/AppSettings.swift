@@ -8,6 +8,10 @@ struct AppSettings: Codable, Hashable, Sendable {
     var restoreLastOutputDevice: Bool
     var lastOutputDeviceUID: String?
     var hotkeysEnabled: Bool
+    var perAppEnabled: Bool
+    var perAppMonitorUID: String?
+    var perAppVolumes: [String: Double]
+    var perAppMuted: [String: Bool]
 
     init(
         presets: [VolumePreset] = [],
@@ -16,7 +20,11 @@ struct AppSettings: Codable, Hashable, Sendable {
         launchAtLogin: Bool = false,
         restoreLastOutputDevice: Bool = false,
         lastOutputDeviceUID: String? = nil,
-        hotkeysEnabled: Bool = true
+        hotkeysEnabled: Bool = true,
+        perAppEnabled: Bool = false,
+        perAppMonitorUID: String? = nil,
+        perAppVolumes: [String: Double] = [:],
+        perAppMuted: [String: Bool] = [:]
     ) {
         self.presets = presets
         self.decimals = min(max(decimals, 0), 3)
@@ -25,6 +33,10 @@ struct AppSettings: Codable, Hashable, Sendable {
         self.restoreLastOutputDevice = restoreLastOutputDevice
         self.lastOutputDeviceUID = lastOutputDeviceUID
         self.hotkeysEnabled = hotkeysEnabled
+        self.perAppEnabled = perAppEnabled
+        self.perAppMonitorUID = perAppMonitorUID
+        self.perAppVolumes = perAppVolumes
+        self.perAppMuted = perAppMuted
     }
 
     init(from decoder: Decoder) throws {
@@ -36,5 +48,9 @@ struct AppSettings: Codable, Hashable, Sendable {
         restoreLastOutputDevice = try container.decodeIfPresent(Bool.self, forKey: .restoreLastOutputDevice) ?? false
         lastOutputDeviceUID = try container.decodeIfPresent(String.self, forKey: .lastOutputDeviceUID)
         hotkeysEnabled = try container.decodeIfPresent(Bool.self, forKey: .hotkeysEnabled) ?? true
+        perAppEnabled = try container.decodeIfPresent(Bool.self, forKey: .perAppEnabled) ?? false
+        perAppMonitorUID = try container.decodeIfPresent(String.self, forKey: .perAppMonitorUID)
+        perAppVolumes = try container.decodeIfPresent([String: Double].self, forKey: .perAppVolumes) ?? [:]
+        perAppMuted = try container.decodeIfPresent([String: Bool].self, forKey: .perAppMuted) ?? [:]
     }
 }
