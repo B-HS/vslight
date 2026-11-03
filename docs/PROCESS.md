@@ -9,6 +9,18 @@
 - `~/.claude/convention/security.md`
 - `docs/tasks/vslight-sdk-research.md`
 
+## 작업: v0.1.0 다국어와 앱별 볼륨 드라이버
+
+- [x] README를 영어로 간결하게 정리 — 버전 정책 문단 제거
+- [x] 한·영·일 문자열 카탈로그 — `Localizable.xcstrings` 100키, `en`/`ja` 컴파일 확인
+- [x] 계산 문자열 로컬라이즈 — 장치 이름, 로그인 상태, 오류, 단축키 fallback
+- [x] HAL 드라이버 구현 — libASPL 기반 `VSLightAudioDriver`, 클라이언트별 게인, `'apvl'` 프로퍼티
+- [x] 루프백 엔진과 앱 UI — 가상 장치 입력과 실제 출력 연결, 앱별 슬라이더/음소거
+- [x] 드라이버 번들 빌드/설치 스크립트 — `Scripts/build-driver.sh`, `install-driver.sh`
+- [x] 앱 번들에 드라이버 포함 — Xcode post-build copy, CI/릴리스 빌드 단계
+- [x] 빌드/테스트 — Debug 빌드, 11개 테스트, 버전 검사 통과
+- [ ] 시스템 드라이버 설치와 실제 오디오 라우팅 검증 — 관리자 권한 필요, 사용자 확인 대기
+
 ## 작업: VSLight v0.1.0 고도화
 
 - [x] a. indou README/워크플로/아이콘 참조 분석 — README 형식, CI/릴리스 단계, 아이콘 생성 구조 확인

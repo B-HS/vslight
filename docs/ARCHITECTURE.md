@@ -92,7 +92,21 @@ VSLight는 macOS 27 전용 메뉴 바 앱이다. Dock 아이콘 없이 동작하
 
 ## 8. 앱별 볼륨
 
-v0.1은 읽기 전용 프로세스 목록만 제공한다. 공개 CoreAudio API에 프로세스 볼륨 프로퍼티가 없기 때문이다. 자세한 판정과 드라이버 계획은 [PER_APP_AUDIO.md](PER_APP_AUDIO.md)에 기록했다.
+앱별 볼륨은 HAL 오디오 드라이버와 루프백 엔진으로 구현한다.
+
+- 드라이버: `Driver/VSLightAudioDriver.cpp`, libASPL 기반 `AudioServerPlugIn`
+- 장치 UID: `com.bhs.vslight.driver.device`
+- 출력 스트림과 루프백 입력 스트림을 함께 노출한다.
+- `OnProcessClientOutput`이 클라이언트별 게인을 적용한다. 클라이언트의 bundle ID 또는 PID로 게인을 찾는다.
+- 앱은 커스텀 프로퍼티 `'apvl'`에 `{bundleID, pid, volume, muted}` 배열을 써서 게인을 전달한다.
+- 믹스된 오디오는 드라이버의 링 버퍼에 저장되고, 입력 스트림을 통해 앱의 루프백 엔진이 읽는다.
+- 루프백 엔진은 가상 장치 입력과 실제 출력 장치를 두 개의 IOProc과 링 버퍼로 연결한다.
+- 앱은 가상 장치를 기본 출력으로 전환하고, 실제 출력 장치 볼륨은 1.0으로 둔 뒤 종료 시 복원한다.
+- 설치는 `/Library/Audio/Plug-Ins/HAL`에 복사하고 `coreaudiod`를 재시작해야 하므로 관리자 승인이 필요하다.
+- 앱이 비정상 종료되면 기본 출력이 가상 장치로 남을 수 있다. 다음 실행 시 `recoverIfNeeded()`가 실제 장치로 되돌린다.
+- 루프백은 추가 IO 버퍼만큼 지연이 생긴다. App Store 배포에는 적합하지 않다.
+
+자세한 배경과 공개 API 제약은 [PER_APP_AUDIO.md](PER_APP_AUDIO.md)에 기록했다.
 
 ## 9. 서명과 배포
 
@@ -127,3 +141,18 @@ v0.1은 읽기 전용 프로세스 목록만 제공한다. 공개 CoreAudio API�
 - `AppModel.shutdown()`은 종료 알림에서 위 정리와 `SettingsStore.flush()`를 호출한다.
 - `SettingsStore`는 250ms debounce로 디스크 쓰기를 합치고, 종료 시 flush한다.
 - 반복 생성되는 CoreAudio 리스너/단축키/Task는 소유 객체가 하나씩만 보관한다.
+
+## 13. 다국어
+
+- 소스 문자열은 한국어를 키로 사용하고 `Sources/Resources/Localizable.xcstrings`에 영어·일본어 번역을 둔다.
+- SwiftUI `Text`, `Label`, `Button`은 자동으로 로컬라이즈된다.
+- 계산 프로퍼티와 오류 메시지는 `String(localized:)`를 사용한다.
+- `Scripts/generate-localizations.py`가 카탈로그를 생성한다.
+- 빌드 결과의 `en.lproj`/`ja.lproj`에 컴파일된 문자열이 포함되는지 확인한다.
+
+## 14. HAL 드라이버
+
+- `Scripts/build-driver.sh`가 libASPL을 고정 커밋으로 받아 C++17로 컴파일하고 `.driver` 번들을 만든다.
+- `Scripts/install-driver.sh`가 `/Library/Audio/Plug-Ins/HAL`에 복사하고 `coreaudiod`를 재시작한다.
+- 앱은 번들에 포함된 드라이버를 관리자 승인으로 설치하는 UI를 제공한다.
+- Developer ID 릴리스에서는 드라이버도 같은 인증서로 서명한다. 공증은 앱 번들 전체에 적용된다.
