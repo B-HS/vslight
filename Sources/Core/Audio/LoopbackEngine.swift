@@ -102,7 +102,6 @@ final class LoopbackEngine {
     private var driverProc: AudioDeviceIOProcID?
     private var outputProc: AudioDeviceIOProcID?
     private var previousDefaultUID: String?
-    private var previousOutputVolume: Float?
     private var previousDriverVolume: Float?
 
     func start(driverUID: String, outputUID: String) throws {
@@ -124,10 +123,8 @@ final class LoopbackEngine {
         previousDefaultUID = AudioDevice.defaultOutputID().flatMap { id in
             AudioDevice.allOutputDevices().first(where: { $0.id == id })?.uid
         }
-        previousOutputVolume = readVolume(output.id)
         previousDriverVolume = readVolume(driver.id)
 
-        setVolume(output.id, 1.0)
         setVolume(driver.id, 1.0)
 
         do {
@@ -170,9 +167,6 @@ final class LoopbackEngine {
         outputProc = nil
         driverProc = nil
 
-        if let previousOutputVolume {
-            setVolume(outputDeviceID, previousOutputVolume)
-        }
         if let previousDriverVolume {
             setVolume(driverDeviceID, previousDriverVolume)
         }
@@ -181,15 +175,12 @@ final class LoopbackEngine {
         driverDeviceID = kAudioObjectUnknown
         outputDeviceID = kAudioObjectUnknown
         previousDefaultUID = nil
-        previousOutputVolume = nil
         previousDriverVolume = nil
         isRunning = false
     }
 
-    private func createDriverProc() throws {
-        let buffer = self.buffer
-        var proc: AudioDeviceIOProcID?
-        let status = AudioDeviceCreateIOProcIDWithBlock(&proc, driverDeviceID, queue) { _, inputData, _, _, _ in
+    nonisolated private static func makeDriverIOBlock(buffer: LoopbackBuffer) -> AudioDeviceIOBlock {
+        { _, inputData, _, _, _ in
             let list = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: inputData))
             guard let bufferList = list.first,
                   let data = bufferList.mData
@@ -203,16 +194,10 @@ final class LoopbackEngine {
                 channels: Int(bufferList.mNumberChannels)
             )
         }
-        guard status == noErr, let proc else {
-            throw LoopbackError.ioCreationFailed(status)
-        }
-        driverProc = proc
     }
 
-    private func createOutputProc() throws {
-        let buffer = self.buffer
-        var proc: AudioDeviceIOProcID?
-        let status = AudioDeviceCreateIOProcIDWithBlock(&proc, outputDeviceID, queue) { _, _, _, outputData, _ in
+    nonisolated private static func makeOutputIOBlock(buffer: LoopbackBuffer) -> AudioDeviceIOBlock {
+        { _, _, _, outputData, _ in
             let list = UnsafeMutableAudioBufferListPointer(outputData)
             guard let bufferList = list.first,
                   let data = bufferList.mData
@@ -226,6 +211,22 @@ final class LoopbackEngine {
                 channels: Int(bufferList.mNumberChannels)
             )
         }
+    }
+
+    private func createDriverProc() throws {
+        let block = Self.makeDriverIOBlock(buffer: buffer)
+        var proc: AudioDeviceIOProcID?
+        let status = AudioDeviceCreateIOProcIDWithBlock(&proc, driverDeviceID, queue, block)
+        guard status == noErr, let proc else {
+            throw LoopbackError.ioCreationFailed(status)
+        }
+        driverProc = proc
+    }
+
+    private func createOutputProc() throws {
+        let block = Self.makeOutputIOBlock(buffer: buffer)
+        var proc: AudioDeviceIOProcID?
+        let status = AudioDeviceCreateIOProcIDWithBlock(&proc, outputDeviceID, queue, block)
         guard status == noErr, let proc else {
             throw LoopbackError.ioCreationFailed(status)
         }
