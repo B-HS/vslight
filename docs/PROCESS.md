@@ -20,7 +20,7 @@
 - [x] g. 단위 테스트 — 버전 정책, 볼륨 포매터, 단축키, 프리셋 직렬화
 - [x] h. 빌드와 실행 검증 — `xcodebuild build`, `xcodebuild test`, 메뉴 바 실행, CoreAudio 소수점 프로브
 - [x] i. 문서 — README, 아키텍처, 버전 정책, 앱별 볼륨 계획
-- [ ] j. GitHub 초기화와 draft PR — 원격 생성, 푸시, draft PR 생성
+- [x] j. GitHub 초기화와 draft PR — `B-HS/vslight` 생성, `main`과 `feat/v0.1-app` 푸시, PR #1 draft 생성
 - [ ] k. 릴리스 워크플로 — 사용자가 서명/공증 값을 제공한 뒤 추가
 - [ ] l. 앱별 볼륨 가상 드라이버 — v0.2 이후, `docs/PER_APP_AUDIO.md` 계획 참고
 

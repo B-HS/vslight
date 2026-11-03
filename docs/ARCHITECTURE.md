@@ -79,6 +79,7 @@ VSLight는 macOS 27 전용 메뉴 바 앱이다. Dock 아이콘 없이 동작하
 - `MenuBarExtra` (`SwiftUI` 인터페이스 2378행), `.menuBarExtraStyle(.window)`
 - Liquid Glass: `glassEffect(_:in:)` (`SwiftUICore` 인터페이스 3085행, macOS 26.0+), `GlassEffectContainer`, `.buttonStyle(.glass)`, `.buttonStyle(.glassProminent)`
 - 배포 타깃은 macOS 27.0이므로 Glass API에 별도 availability 분기를 두지 않는다.
+- 프리셋 목록은 macOS 27의 `DynamicViewContent.reorderable()`을 사용한다. 같은 이유로 availability 분기가 필요 없다.
 - 메뉴 바 라벨은 `Image(systemName:variableValue:)`로 볼륨에 따라 심볼을 바꾸고, 설정에서 퍼센트 텍스트를 켤 수 있다.
 - 설정 창은 `Settings` scene과 `openSettings` 환경 액션으로 연다.
 

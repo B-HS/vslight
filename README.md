@@ -15,6 +15,7 @@ SwiftUI, CoreAudio, Carbon 단축키만 사용한다. Electron, Tauri, 서드파
 - 소수점 단위 시스템 출력 볼륨 제어. 슬라이더와 퍼센트 직접 입력을 함께 제공한다.
 - 출력 장치 열거, 기본 출력 장치 전환, 장치 UID 기반 복원.
 - 프리셋 목록과 프리셋별 전역 단축키. Carbon `RegisterEventHotKey`를 사용해 손쉬운 사용 권한 없이 동작한다.
+- macOS 27 `reorderable()` 기반 프리셋 순서 변경.
 - 메뉴 막대 아이콘과 퍼센트 표시, 음소거 상태 반영.
 - Liquid Glass 기반 메뉴 바 팝오버와 설정 창.
 - 현재 오디오를 재생하는 앱 목록 표시.
