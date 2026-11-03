@@ -31,8 +31,16 @@ final class HotkeyManager {
         )
     }
 
-    func sync(presets: [VolumePreset]) {
+    func stop() {
         unregisterAll()
+        if let eventHandler {
+            RemoveEventHandler(eventHandler)
+        }
+        eventHandler = nil
+        failures.removeAll()
+    }
+
+    func sync(presets: [VolumePreset]) {        unregisterAll()
         failures.removeAll()
         var used: Set<String> = []
         for preset in presets {

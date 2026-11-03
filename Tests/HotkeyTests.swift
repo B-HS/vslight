@@ -31,4 +31,11 @@ final class HotkeyTests: XCTestCase {
         XCTAssertEqual(decoded, preset)
         XCTAssertEqual(decoded.volumeText, "63.7")
     }
+
+    func testPresetDecodingClampsVolume() throws {
+        let json = #"{"id":"11111111-1111-1111-1111-111111111111","name":"범위 밖","volume":2.5}"#
+        let decoded = try JSONDecoder().decode(VolumePreset.self, from: Data(json.utf8))
+        XCTAssertEqual(decoded.volume, 1)
+        XCTAssertEqual(decoded.volumeText, "100.0")
+    }
 }

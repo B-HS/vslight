@@ -21,14 +21,17 @@ struct VolumePreset: Identifiable, Codable, Hashable, Sendable {
         self.hotkey = hotkey
     }
 
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        name = try container.decodeIfPresent(String.self, forKey: .name) ?? "프리셋"
+        let decodedVolume = try container.decodeIfPresent(Double.self, forKey: .volume) ?? 0.5
+        volume = min(max(decodedVolume, 0), 1)
+        deviceUID = try container.decodeIfPresent(String.self, forKey: .deviceUID)
+        hotkey = try container.decodeIfPresent(Hotkey.self, forKey: .hotkey)
+    }
+
     var volumeText: String {
         VolumeFormatter.percent(volume, decimals: 1)
     }
-
-    static let defaults: [VolumePreset] = [
-        VolumePreset(name: "조용히", volume: 0.2),
-        VolumePreset(name: "보통", volume: 0.5),
-        VolumePreset(name: "크게", volume: 0.8),
-        VolumePreset(name: "최대", volume: 1.0)
-    ]
 }

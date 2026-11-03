@@ -17,6 +17,8 @@ final class AudioSystem {
 
     private var globalListeners: [ListenerToken] = []
     private var volumeListeners: [ListenerToken] = []
+    @ObservationIgnored private var refreshTask: Task<Void, Never>?
+    @ObservationIgnored private var restartTask: Task<Void, Never>?
     private var isStarted = false
 
     private struct ListenerToken {
@@ -54,6 +56,45 @@ final class AudioSystem {
         refresh()
     }
 
+    func stop() {
+        refreshTask?.cancel()
+        refreshTask = nil
+        restartTask?.cancel()
+        restartTask = nil
+        remove(globalListeners)
+        globalListeners.removeAll()
+        remove(volumeListeners)
+        volumeListeners.removeAll()
+        isStarted = false
+    }
+
+    func restartMonitoring() {
+        guard isStarted else {
+            return
+        }
+        refreshTask?.cancel()
+        refreshTask = nil
+        restartTask?.cancel()
+        restartTask = nil
+        remove(globalListeners)
+        globalListeners.removeAll()
+        remove(volumeListeners)
+        volumeListeners.removeAll()
+        installGlobalListeners()
+        refresh()
+    }
+
+    func scheduleRefresh() {
+        refreshTask?.cancel()
+        refreshTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(120))
+            guard let self, !Task.isCancelled else {
+                return
+            }
+            self.refresh()
+        }
+    }
+
     func refresh() {
         devices = AudioDevice.allOutputDevices()
         defaultDeviceID = AudioDevice.defaultOutputID() ?? kAudioObjectUnknown
@@ -70,11 +111,16 @@ final class AudioSystem {
                 value: device.id
             )
             defaultDeviceID = device.id
+            lastError = nil
             refreshVolumeListeners()
             readVolumeState()
         } catch {
             lastError = error.localizedDescription
         }
+    }
+
+    func clearError() {
+        lastError = nil
     }
 
     func setVolume(_ newValue: Double) {
@@ -91,6 +137,7 @@ final class AudioSystem {
                 try setChannelVolume(Float(clamped))
             }
             canSetVolume = true
+            lastError = nil
             if clamped > 0, isMuted {
                 try? setMute(false)
                 isMuted = false
@@ -112,6 +159,7 @@ final class AudioSystem {
         do {
             try setMute(muted)
             isMuted = muted
+            lastError = nil
         } catch {
             lastError = error.localizedDescription
         }
@@ -254,14 +302,14 @@ final class AudioSystem {
             address: audioPropertyAddress(kAudioHardwarePropertyDefaultOutputDevice),
             into: &globalListeners
         ) { [weak self] in
-            self?.refresh()
+            self?.scheduleRefresh()
         }
         install(
             object: systemAudioObject,
             address: audioPropertyAddress(kAudioHardwarePropertyDevices),
             into: &globalListeners
         ) { [weak self] in
-            self?.refresh()
+            self?.scheduleRefresh()
         }
         install(
             object: systemAudioObject,
@@ -269,6 +317,24 @@ final class AudioSystem {
             into: &globalListeners
         ) { [weak self] in
             self?.refreshProcesses()
+        }
+        install(
+            object: systemAudioObject,
+            address: audioPropertyAddress(kAudioHardwarePropertyServiceRestarted),
+            into: &globalListeners
+        ) { [weak self] in
+            self?.handleServiceRestart()
+        }
+    }
+
+    private func handleServiceRestart() {
+        restartTask?.cancel()
+        restartTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(400))
+            guard let self, !Task.isCancelled else {
+                return
+            }
+            self.restartMonitoring()
         }
     }
 
@@ -278,11 +344,37 @@ final class AudioSystem {
         guard defaultDeviceID != kAudioObjectUnknown else {
             return
         }
-        install(object: defaultDeviceID, address: mainVolumeAddress, into: &volumeListeners) { [weak self] in
-            self?.readVolumeState()
+        if AudioProperty.has(defaultDeviceID, mainVolumeAddress) {
+            install(object: defaultDeviceID, address: mainVolumeAddress, into: &volumeListeners) { [weak self] in
+                self?.readVolumeState()
+            }
         }
-        install(object: defaultDeviceID, address: mainMuteAddress, into: &volumeListeners) { [weak self] in
-            self?.readVolumeState()
+        if AudioProperty.has(defaultDeviceID, mainMuteAddress) {
+            install(object: defaultDeviceID, address: mainMuteAddress, into: &volumeListeners) { [weak self] in
+                self?.readVolumeState()
+            }
+        }
+        installChannelListeners(kAudioDevicePropertyVolumeScalar)
+        installChannelListeners(kAudioDevicePropertyMute)
+    }
+
+    private func installChannelListeners(_ selector: AudioObjectPropertySelector) {
+        let channels = currentDevice?.outputChannels ?? 0
+        guard channels > 0 else {
+            return
+        }
+        for channel in 1...channels {
+            let address = audioPropertyAddress(
+                selector,
+                scope: kAudioDevicePropertyScopeOutput,
+                element: AudioObjectPropertyElement(channel)
+            )
+            guard AudioProperty.has(defaultDeviceID, address) else {
+                continue
+            }
+            install(object: defaultDeviceID, address: address, into: &volumeListeners) { [weak self] in
+                self?.readVolumeState()
+            }
         }
     }
 

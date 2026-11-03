@@ -10,7 +10,7 @@ struct AppSettings: Codable, Hashable, Sendable {
     var hotkeysEnabled: Bool
 
     init(
-        presets: [VolumePreset] = VolumePreset.defaults,
+        presets: [VolumePreset] = [],
         decimals: Int = 1,
         showPercentageInMenuBar: Bool = false,
         launchAtLogin: Bool = false,
@@ -29,7 +29,7 @@ struct AppSettings: Codable, Hashable, Sendable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        presets = try container.decodeIfPresent([VolumePreset].self, forKey: .presets) ?? VolumePreset.defaults
+        presets = try container.decodeIfPresent([VolumePreset].self, forKey: .presets) ?? []
         decimals = min(max(try container.decodeIfPresent(Int.self, forKey: .decimals) ?? 1, 0), 3)
         showPercentageInMenuBar = try container.decodeIfPresent(Bool.self, forKey: .showPercentageInMenuBar) ?? false
         launchAtLogin = try container.decodeIfPresent(Bool.self, forKey: .launchAtLogin) ?? false

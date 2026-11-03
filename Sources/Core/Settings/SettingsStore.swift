@@ -1,16 +1,19 @@
 import Foundation
 import Observation
+import OSLog
 
 @MainActor
 @Observable
 final class SettingsStore {
     var settings: AppSettings {
         didSet {
-            save()
+            scheduleSave()
         }
     }
 
     private let fileURL: URL
+    private let logger = Logger(subsystem: "com.bhs.vslight", category: "settings")
+    @ObservationIgnored private var saveTask: Task<Void, Never>?
 
     init(fileURL: URL = SettingsStore.defaultFileURL) {
         self.fileURL = fileURL
@@ -28,7 +31,24 @@ final class SettingsStore {
         return base.appending(path: "VSLight/settings.json")
     }
 
-    private func save() {
+    func flush() {
+        saveTask?.cancel()
+        saveTask = nil
+        saveNow()
+    }
+
+    private func scheduleSave() {
+        saveTask?.cancel()
+        saveTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(250))
+            guard let self, !Task.isCancelled else {
+                return
+            }
+            self.saveNow()
+        }
+    }
+
+    private func saveNow() {
         do {
             let directory = fileURL.deletingLastPathComponent()
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -37,7 +57,7 @@ final class SettingsStore {
             let data = try encoder.encode(settings)
             try data.write(to: fileURL, options: .atomic)
         } catch {
-            NSLog("VSLight 설정 저장 실패: \(error.localizedDescription)")
+            logger.error("설정 저장 실패: \(error.localizedDescription, privacy: .public)")
         }
     }
 }
