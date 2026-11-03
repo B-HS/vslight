@@ -119,21 +119,49 @@ jobs:
             echo "identity=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+
           CERT_PATH="$RUNNER_TEMP/build_certificate.p12"
           KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
-          echo -n "$MACOS_CERTIFICATE" | base64 --decode -o "$CERT_PATH"
+          CERT_BASE64="$(printf '%s' "$MACOS_CERTIFICATE" | tr -d '[:space:]')"
+
+          if [ -z "$CERT_BASE64" ]; then
+            echo "::error::MACOS_CERTIFICATE is empty after removing whitespace."
+            exit 1
+          fi
+
+          if ! printf '%s' "$CERT_BASE64" | base64 --decode -o "$CERT_PATH"; then
+            echo "::error::MACOS_CERTIFICATE is not valid base64. Export the Developer ID Application .p12 and run: base64 -i cert.p12 | tr -d '\\n' | pbcopy"
+            exit 1
+          fi
+
+          if [ ! -s "$CERT_PATH" ]; then
+            echo "::error::Decoded certificate is empty. Check MACOS_CERTIFICATE."
+            exit 1
+          fi
+
           chmod 600 "$CERT_PATH"
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security import "$CERT_PATH" -P "$MACOS_CERTIFICATE_PASSWORD" \
-            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+
+          if ! security import "$CERT_PATH" -P "$MACOS_CERTIFICATE_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"; then
+            echo "::error::Could not import the .p12. Check MACOS_CERTIFICATE_PASSWORD and that the file contains the certificate private key."
+            exit 1
+          fi
+
           security set-key-partition-list -S apple-tool:,apple:,codesign: \
             -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain
           rm -P "$CERT_PATH" 2>/dev/null || rm -f "$CERT_PATH"
           IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" \
             | grep -o '"Developer ID Application: [^"]*"' | head -n1 | tr -d '"')"
+
+          if [ -z "$IDENTITY" ]; then
+            echo "::error::No Developer ID Application identity found. Export a Developer ID Application certificate with its private key, not an Apple Development certificate."
+            exit 1
+          fi
+
           echo "identity=$IDENTITY" >> "$GITHUB_OUTPUT"
 
       - name: Build audio driver
