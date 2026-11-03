@@ -137,9 +137,10 @@ final class AudioSystem {
         if let value: Float = try? AudioProperty.get(defaultDeviceID, mainVolume, defaultValue: 0) {
             volume = Double(value)
             canSetVolume = AudioProperty.isSettable(defaultDeviceID, mainVolume)
+                || hasSettableChannel(kAudioDevicePropertyVolumeScalar)
         } else if let value = readChannelVolume() {
             volume = Double(value)
-            canSetVolume = true
+            canSetVolume = hasSettableChannel(kAudioDevicePropertyVolumeScalar)
         } else {
             canSetVolume = false
         }
@@ -147,10 +148,29 @@ final class AudioSystem {
         if let value: UInt32 = try? AudioProperty.get(defaultDeviceID, muteAddress, defaultValue: 0) {
             isMuted = value != 0
             canSetMute = AudioProperty.isSettable(defaultDeviceID, muteAddress)
+                || hasSettableChannel(kAudioDevicePropertyMute)
         } else {
             isMuted = false
             canSetMute = false
         }
+    }
+
+    private func hasSettableChannel(_ selector: AudioObjectPropertySelector) -> Bool {
+        let channels = currentDevice?.outputChannels ?? 0
+        guard channels > 0 else {
+            return false
+        }
+        for channel in 1...channels {
+            let address = audioPropertyAddress(
+                selector,
+                scope: kAudioDevicePropertyScopeOutput,
+                element: AudioObjectPropertyElement(channel)
+            )
+            if AudioProperty.isSettable(defaultDeviceID, address) {
+                return true
+            }
+        }
+        return false
     }
 
     private func readChannelVolume() -> Float? {
