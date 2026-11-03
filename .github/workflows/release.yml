@@ -241,27 +241,79 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
           PREVIOUS: ${{ steps.version.outputs.previous }}
         run: |
-          if [ -z "$PREVIOUS" ]; then
-            LOG="$(git log --pretty=format:'- %s (%h)' --reverse)"
+          NOTES_FILE="docs/release-notes/v$VERSION.md"
+          CHECKSUM_FILE="build/Build/Products/Release/VSLight-$VERSION.zip.sha256"
+          CHECKSUM="$(awk '{print $1}' "$CHECKSUM_FILE")"
+
+          if [ -f "$NOTES_FILE" ]; then
+            BODY="$(cat "$NOTES_FILE")"
           else
-            LOG="$(git log "$PREVIOUS"..HEAD --pretty=format:'- %s (%h)' --reverse)"
+            if [ -z "$PREVIOUS" ]; then
+              LOG="$(git log --pretty=format:'- %s (%h)' --reverse)"
+            else
+              LOG="$(git log "$PREVIOUS"..HEAD --pretty=format:'- %s (%h)' --reverse)"
+            fi
+
+            SIGNED_NOTE="ad-hoc signed"
+            if [ -n "${{ steps.sign.outputs.identity }}" ]; then
+              SIGNED_NOTE="Developer ID signed and notarized"
+            fi
+
+            BODY="$(cat <<STATIC
+          VSLight is a native macOS 27 volume controller built with SwiftUI, CoreAudio, and Carbon global shortcuts.
+          
+          ## Highlights
+          
+          - Precise system volume with a slider and click-to-edit percentage.
+          - Presets with global shortcuts. No default presets.
+          - Output device switching from the menu bar window.
+          - Liquid Glass UI, macOS 27 \`reorderable()\`, and Swift 6 strict concurrency.
+          - Sleep/wake, session, CoreAudio restart, and device-change recovery.
+          - Launch at login with approval state and restart controls.
+          - Korean, English, and Japanese UI.
+          - Per-app volume through the bundled HAL audio driver (experimental).
+          
+          ## Installation
+          
+          1. Download \`VSLight-$VERSION.zip\`.
+          2. Move \`VSLight.app\` to \`/Applications\`.
+          3. Open the app.
+          
+          Per-app volume requires the bundled driver and an administrator password. It restarts \`coreaudiod\` and adds one IO buffer of routing latency.
+          
+          ## Requirements
+          
+          - macOS 27.0 or later
+          
+          ## Changes
+          
+          $LOG
+          
+          ## Artifacts
+          
+          - \`VSLight-$VERSION.zip\` — $SIGNED_NOTE
+          - \`VSLight-$VERSION.zip.sha256\` — checksum
+          
+          SHA256:
+          
+          \`\`\`text
+          $CHECKSUM  VSLight-$VERSION.zip
+          \`\`\`
+          
+          ## Known Limitations
+          
+          - Per-app volume is experimental and requires the bundled HAL driver.
+          - The app is not sandboxed; distribution uses Developer ID.
+          - Automatic updates are not included.
+          
+          > Draft release. Test the app before publishing.
+          STATIC
+          )"
           fi
-          SIGNED_NOTE="ad-hoc signed"
-          if [ -n "${{ steps.sign.outputs.identity }}" ]; then
-            SIGNED_NOTE="Developer ID signed and notarized"
-          fi
+
           {
             echo "body<<EOF"
-            echo "### Changes"
-            echo ""
-            echo "$LOG"
-            echo ""
-            echo "### Artifacts"
-            echo ""
-            echo "- \`VSLight-$VERSION.zip\` — $SIGNED_NOTE"
-            echo "- \`.sha256\` — checksum"
-            echo ""
-            echo "> Draft release. Test the app before publishing."
+            printf '%s\n' "$BODY"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
