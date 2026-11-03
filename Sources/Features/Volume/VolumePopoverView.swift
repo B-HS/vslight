@@ -6,65 +6,56 @@ struct VolumePopoverView: View {
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
-        VStack(spacing: 14) {
-            header
+        VStack(spacing: 10) {
+            HStack(spacing: 4) {
+                OutputDeviceMenu()
+                Spacer(minLength: 0)
+                iconButton("gearshape", help: "설정") {
+                    model.settingsTab = .general
+                    NSApplication.shared.activate()
+                    openSettings()
+                }
+                iconButton("power", help: "종료") {
+                    NSApplication.shared.terminate(nil)
+                }
+            }
             VolumeCardView()
-            OutputDeviceMenu()
             PresetChipsView()
-            Divider()
-            footer
+            if let error = model.audio.lastError {
+                HStack(spacing: 4) {
+                    Text(error)
+                        .font(.caption2)
+                        .foregroundStyle(.red)
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                    Button {
+                        model.clearError()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 8, weight: .bold))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
-        .padding(16)
-        .frame(width: 344)
+        .padding(12)
+        .frame(width: 304)
         .task {
             model.start()
         }
     }
 
-    private var header: some View {
-        HStack(alignment: .center, spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("VSLight")
-                    .font(.headline)
-                Text(model.audio.deviceName)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            Spacer()
-            Button {
-                NSApplication.shared.activate()
-                openSettings()
-            } label: {
-                Image(systemName: "gearshape")
-                    .frame(width: 22, height: 22)
-            }
-            .buttonStyle(.glass)
-            .help("설정 열기")
-
-            Button {
-                NSApplication.shared.terminate(nil)
-            } label: {
-                Image(systemName: "power")
-                    .frame(width: 22, height: 22)
-            }
-            .buttonStyle(.glass)
-            .help("종료")
+    private func iconButton(_ name: String, help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: name)
+                .font(.system(size: 12, weight: .medium))
+                .frame(width: 24, height: 24)
+                .contentShape(Rectangle())
         }
-    }
-
-    private var footer: some View {
-        HStack(spacing: 8) {
-            Text("v\(model.versionText)")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-            Spacer()
-            if let error = model.audio.lastError {
-                Text(error)
-                    .font(.caption2)
-                    .foregroundStyle(.red)
-                    .lineLimit(1)
-            }
-        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
+        .help(help)
     }
 }

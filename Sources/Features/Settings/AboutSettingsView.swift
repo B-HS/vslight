@@ -1,12 +1,14 @@
+import AppKit
 import SwiftUI
 
 struct AboutSettingsView: View {
+    @Environment(\.openURL) private var openURL
+
     var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "speaker.wave.3.fill")
-                .font(.system(size: 52, weight: .regular))
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(.tint)
+        VStack(spacing: 10) {
+            Image(nsImage: NSApplication.shared.applicationIconImage)
+                .resizable()
+                .frame(width: 72, height: 72)
 
             Text("VSLight")
                 .font(.title2.weight(.semibold))
@@ -18,7 +20,7 @@ struct AboutSettingsView: View {
                 .foregroundStyle(.tertiary)
 
             Divider()
-                .padding(.horizontal, 60)
+                .padding(.horizontal, 70)
 
             VStack(alignment: .leading, spacing: 6) {
                 Label("소수점 단위 시스템 볼륨 제어", systemImage: "slider.horizontal.3")
@@ -28,9 +30,15 @@ struct AboutSettingsView: View {
             }
             .font(.callout)
             .foregroundStyle(.secondary)
-            .padding(.top, 4)
 
-            Spacer(minLength: 8)
+            Button("GitHub에서 보기") {
+                if let url = URL(string: "https://github.com/B-HS/vslight") {
+                    openURL(url)
+                }
+            }
+            .font(.caption)
+
+            Spacer(minLength: 4)
 
             Text("버전 번호에는 숫자 4를 사용하지 않습니다. 릴리스는 0.1.0, 0.2.0, 0.3.0, 0.5.0 순서로 진행합니다.")
                 .font(.caption2)
@@ -38,7 +46,7 @@ struct AboutSettingsView: View {
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 380)
         }
-        .padding(24)
+        .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

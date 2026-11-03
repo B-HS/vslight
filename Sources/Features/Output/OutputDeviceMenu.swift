@@ -5,14 +5,22 @@ struct OutputDeviceMenu: View {
 
     var body: some View {
         Menu {
-            ForEach(model.audio.devices) { device in
-                Button {
-                    model.select(device)
-                } label: {
-                    Label(
-                        "\(device.name) · \(device.transport.label)",
-                        systemImage: device.id == model.audio.defaultDeviceID ? "checkmark" : device.transport.symbolName
-                    )
+            if model.audio.devices.isEmpty {
+                Text("출력 장치 없음")
+            } else {
+                ForEach(model.audio.devices) { device in
+                    Button {
+                        model.select(device)
+                    } label: {
+                        if device.id == model.audio.defaultDeviceID {
+                            Label(device.name, systemImage: "checkmark")
+                        } else {
+                            Label(
+                                "\(device.name) · \(device.transport.label)",
+                                systemImage: device.transport.symbolName
+                            )
+                        }
+                    }
                 }
             }
             Divider()
@@ -20,21 +28,21 @@ struct OutputDeviceMenu: View {
                 model.openSoundSettings()
             }
         } label: {
-            HStack(spacing: 10) {
+            HStack(spacing: 6) {
                 Image(systemName: model.audio.currentDevice?.transport.symbolName ?? "hifispeaker")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
                 Text(model.audio.deviceName)
+                    .font(.callout.weight(.medium))
                     .lineLimit(1)
-                Spacer(minLength: 6)
-                Image(systemName: "arrow.up.arrow.down")
-                    .font(.caption2.weight(.semibold))
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8, weight: .bold))
                     .foregroundStyle(.tertiary)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 9)
-            .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 12))
+            .contentShape(Rectangle())
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
+        .help("출력 장치 선택")
     }
 }

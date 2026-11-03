@@ -6,37 +6,53 @@ struct PresetsSettingsView: View {
     var body: some View {
         @Bindable var store = model.store
         VStack(spacing: 0) {
-            List {
-                ForEach($store.settings.presets) { $preset in
-                    PresetRow(preset: $preset)
-                        .listRowInsets(EdgeInsets(top: 6, leading: 10, bottom: 6, trailing: 10))
+            if store.settings.presets.isEmpty {
+                ContentUnavailableView {
+                    Label("프리셋 없음", systemImage: "square.stack.3d.up")
+                } description: {
+                    Text("자주 쓰는 볼륨을 저장하고 전역 단축키를 지정하세요.")
+                } actions: {
+                    Button("프리셋 추가") {
+                        addPreset()
+                    }
                 }
-                .reorderable()
-                .onDelete { offsets in
-                    store.settings.presets.remove(atOffsets: offsets)
-                    model.applyHotkeys()
+            } else {
+                List {
+                    ForEach($store.settings.presets) { $preset in
+                        PresetRow(preset: $preset)
+                            .listRowInsets(EdgeInsets(top: 6, leading: 10, bottom: 6, trailing: 10))
+                    }
+                    .reorderable()
+                    .onDelete { offsets in
+                        store.settings.presets.remove(atOffsets: offsets)
+                        model.applyHotkeys()
+                    }
+                    .onMove { source, destination in
+                        store.settings.presets.move(fromOffsets: source, toOffset: destination)
+                    }
                 }
-                .onMove { source, destination in
-                    store.settings.presets.move(fromOffsets: source, toOffset: destination)
-                }
-            }
-            .listStyle(.inset)
+                .listStyle(.inset)
 
-            HStack(spacing: 10) {
-                Button("프리셋 추가") {
-                    store.settings.presets.append(VolumePreset(name: "새 프리셋", volume: 0.5))
-                    model.applyHotkeys()
+                HStack(spacing: 10) {
+                    Button("프리셋 추가") {
+                        addPreset()
+                    }
+                    Spacer()
+                    Text("\(store.settings.presets.count)개")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                Spacer()
-                Text("\(store.settings.presets.count)개")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                .padding(12)
             }
-            .padding(12)
         }
         .onChange(of: store.settings.presets.map(\.hotkey)) { _, _ in
             model.applyHotkeys()
         }
+    }
+
+    private func addPreset() {
+        model.store.settings.presets.append(VolumePreset(name: "새 프리셋", volume: 0.5))
+        model.applyHotkeys()
     }
 }
 
