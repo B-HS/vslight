@@ -261,9 +261,9 @@ jobs:
 
             BODY="$(cat <<STATIC
           VSLight is a native macOS 27 volume controller built with SwiftUI, CoreAudio, and Carbon global shortcuts.
-          
+
           ## Highlights
-          
+
           - Precise system volume with a slider and click-to-edit percentage.
           - Presets with global shortcuts. No default presets.
           - Output device switching from the menu bar window.
@@ -272,40 +272,40 @@ jobs:
           - Launch at login with approval state and restart controls.
           - Korean, English, and Japanese UI.
           - Per-app volume through the bundled HAL audio driver (experimental).
-          
+
           ## Installation
-          
+
           1. Download \`VSLight-$VERSION.zip\`.
           2. Move \`VSLight.app\` to \`/Applications\`.
           3. Open the app.
-          
+
           Per-app volume requires the bundled driver and an administrator password. It restarts \`coreaudiod\` and adds one IO buffer of routing latency.
-          
+
           ## Requirements
-          
+
           - macOS 27.0 or later
-          
+
           ## Changes
-          
+
           $LOG
-          
+
           ## Artifacts
-          
+
           - \`VSLight-$VERSION.zip\` — $SIGNED_NOTE
           - \`VSLight-$VERSION.zip.sha256\` — checksum
-          
+
           SHA256:
-          
+
           \`\`\`text
           $CHECKSUM  VSLight-$VERSION.zip
           \`\`\`
-          
+
           ## Known Limitations
-          
+
           - Per-app volume is experimental and requires the bundled HAL driver.
           - The app is not sandboxed; distribution uses Developer ID.
           - Automatic updates are not included.
-          
+
           > Draft release. Test the app before publishing.
           STATIC
           )"
@@ -335,3 +335,4 @@ jobs:
           security delete-keychain "$RUNNER_TEMP/app-signing.keychain-db" 2>/dev/null || true
           rm -Pf "$RUNNER_TEMP/build_certificate.p12" 2>/dev/null || true
           rm -f "$RUNNER_TEMP/notarize.zip" 2>/dev/null || true
+
