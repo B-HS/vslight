@@ -20,7 +20,7 @@
 - [x] g. 아이콘 — `Scripts/generate-icon.swift`로 AppIcon 생성, Assets.xcassets 적용
 - [x] h. README/워크플로 — CI와 draft 릴리스 워크플로 작성
 - [x] i. 정리/검증 — 리스너/Task 해제, 설정 debounce/flush, 빌드·테스트
-- [ ] j. 커밋/푸시, 저장소 public 전환
+- [x] j. 커밋/푸시, 저장소 public 전환 — 고도화 커밋 5개 푸시, 저장소 public 전환 완료
 
 ### 고도화 상세
 
