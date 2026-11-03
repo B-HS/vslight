@@ -37,14 +37,6 @@ struct AboutSettingsView: View {
                 }
             }
             .font(.caption)
-
-            Spacer(minLength: 4)
-
-            Text("버전 번호에는 숫자 4를 사용하지 않습니다. 릴리스는 0.1.0, 0.2.0, 0.3.0, 0.5.0 순서로 진행합니다.")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 380)
         }
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

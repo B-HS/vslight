@@ -50,7 +50,7 @@ struct Hotkey: Codable, Hashable, Sendable {
 
 enum KeyCodeNames {
     static func label(for keyCode: UInt32) -> String {
-        labels[keyCode] ?? "키 \(keyCode)"
+        labels[keyCode] ?? String(localized: "키") + " \(keyCode)"
     }
 
     private static let labels: [UInt32: String] = [

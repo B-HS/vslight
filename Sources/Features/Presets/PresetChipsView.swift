@@ -39,7 +39,7 @@ struct PresetChipsView: View {
                         }
                         .buttonStyle(.plain)
                         .background(.quaternary.opacity(0.45), in: Capsule())
-                        .help(preset.hotkey.map { "단축키 \($0.displayString)" } ?? "단축키 없음")
+                        .help(preset.hotkey.map { String(localized: "단축키") + " \($0.displayString)" } ?? String(localized: "단축키 없음"))
                     }
                 }
                 .padding(.vertical, 1)

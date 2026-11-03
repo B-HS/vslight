@@ -49,7 +49,7 @@ final class HotkeyManager {
             }
             let signature = "\(hotkey.keyCode)-\(hotkey.modifiers)"
             guard !used.contains(signature) else {
-                failures[preset.id] = "같은 단축키를 다른 프리셋이 사용 중입니다."
+                failures[preset.id] = String(localized: "같은 단축키를 다른 프리셋이 사용 중입니다.")
                 continue
             }
             used.insert(signature)
@@ -97,9 +97,9 @@ final class HotkeyManager {
 
     private func message(for status: OSStatus) -> String {
         if status == eventHotKeyExistsErr {
-            return "이미 다른 앱이 사용하는 단축키입니다."
+            return String(localized: "이미 다른 앱이 사용하는 단축키입니다.")
         }
-        return "단축키를 등록하지 못했습니다. (\(status))"
+        return String(localized: "단축키를 등록하지 못했습니다.") + " (\(status))"
     }
 }
 

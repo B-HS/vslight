@@ -24,7 +24,7 @@ struct VolumePreset: Identifiable, Codable, Hashable, Sendable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
-        name = try container.decodeIfPresent(String.self, forKey: .name) ?? "프리셋"
+        name = try container.decodeIfPresent(String.self, forKey: .name) ?? String(localized: "프리셋")
         let decodedVolume = try container.decodeIfPresent(Double.self, forKey: .volume) ?? 0.5
         volume = min(max(decodedVolume, 0), 1)
         deviceUID = try container.decodeIfPresent(String.self, forKey: .deviceUID)

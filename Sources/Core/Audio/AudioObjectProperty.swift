@@ -8,9 +8,9 @@ enum AudioPropertyError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case let .status(status):
-            "CoreAudio 오류 (\(status))"
+            String(localized: "CoreAudio 오류") + " (\(status))"
         case .missingValue:
-            "오디오 속성 값을 읽지 못했습니다."
+            String(localized: "오디오 속성 값을 읽지 못했습니다.")
         }
     }
 }

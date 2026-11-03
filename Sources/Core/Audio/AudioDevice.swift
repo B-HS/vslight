@@ -20,20 +20,20 @@ struct AudioDevice: Identifiable, Hashable, Sendable {
 
         var label: String {
             switch self {
-            case .builtIn: "내장"
-            case .usb: "USB"
-            case .bluetooth: "Bluetooth"
-            case .bluetoothLE: "Bluetooth LE"
-            case .hdmi: "HDMI"
-            case .displayPort: "DisplayPort"
-            case .airPlay: "AirPlay"
-            case .virtual: "가상"
-            case .aggregate: "집계 장치"
-            case .thunderbolt: "Thunderbolt"
-            case .pci: "PCI"
-            case .fireWire: "FireWire"
-            case .avb: "AVB"
-            case .other: "기타"
+            case .builtIn: String(localized: "내장")
+            case .usb: String(localized: "USB")
+            case .bluetooth: String(localized: "Bluetooth")
+            case .bluetoothLE: String(localized: "Bluetooth LE")
+            case .hdmi: String(localized: "HDMI")
+            case .displayPort: String(localized: "DisplayPort")
+            case .airPlay: String(localized: "AirPlay")
+            case .virtual: String(localized: "가상")
+            case .aggregate: String(localized: "집계 장치")
+            case .thunderbolt: String(localized: "Thunderbolt")
+            case .pci: String(localized: "PCI")
+            case .fireWire: String(localized: "FireWire")
+            case .avb: String(localized: "AVB")
+            case .other: String(localized: "기타")
             }
         }
 

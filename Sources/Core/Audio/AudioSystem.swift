@@ -33,7 +33,7 @@ final class AudioSystem {
     }
 
     var deviceName: String {
-        currentDevice?.name ?? "출력 장치 없음"
+        currentDevice?.name ?? String(localized: "출력 장치 없음")
     }
 
     var menuBarSymbol: String {
@@ -425,7 +425,7 @@ final class AudioSystem {
             }
             let bundleID = try? AudioProperty.getString(objectID, audioPropertyAddress(kAudioProcessPropertyBundleID))
             let app = NSRunningApplication(processIdentifier: pid)
-            let name = app?.localizedName ?? bundleID ?? "알 수 없는 앱"
+            let name = app?.localizedName ?? bundleID ?? String(localized: "알 수 없는 앱")
             return AudioProcess(id: objectID, pid: pid, bundleID: bundleID, name: name)
         }
         .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }

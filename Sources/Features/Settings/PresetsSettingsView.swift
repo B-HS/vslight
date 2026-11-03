@@ -51,7 +51,7 @@ struct PresetsSettingsView: View {
     }
 
     private func addPreset() {
-        model.store.settings.presets.append(VolumePreset(name: "새 프리셋", volume: 0.5))
+        model.store.settings.presets.append(VolumePreset(name: String(localized: "새 프리셋"), volume: 0.5))
         model.applyHotkeys()
     }
 }

@@ -15,7 +15,7 @@ struct HotkeyRecorderView: View {
                     startRecording()
                 }
             } label: {
-                Text(isRecording ? "키 입력..." : (hotkey?.displayString ?? "단축키 없음"))
+                Text(isRecording ? String(localized: "키 입력...") : (hotkey?.displayString ?? String(localized: "단축키 없음")))
                     .font(.caption.monospaced())
                     .frame(minWidth: 92)
             }
