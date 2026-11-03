@@ -33,6 +33,7 @@ struct VolumePopoverView: View {
             }
             Spacer()
             Button {
+                NSApplication.shared.activate()
                 openSettings()
             } label: {
                 Image(systemName: "gearshape")
