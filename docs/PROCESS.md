@@ -9,6 +9,29 @@
 - `~/.claude/convention/security.md`
 - `docs/tasks/vslight-sdk-research.md`
 
+## 작업: VSLight v0.1.0 고도화
+
+- [x] a. indou README/워크플로/아이콘 참조 분석 — README 형식, CI/릴리스 단계, 아이콘 생성 구조 확인
+- [x] b. 기본 프리셋 제거 — 신규 설치 시 빈 목록, 빠른 창과 설정에 빈 상태 UI
+- [x] c. 빠른 창 미니멀 재설계 — 장치 선택 상단, 제목/버전 제거, 304pt, 인라인 퍼센트 편집
+- [x] d. 로그인 시 실행 UX — 상태 표시, 승인 화면 열기, 다시 확인, 앱 재시작
+- [x] e. 상태 복구 — 절전/깨우기, 세션 활성화, CoreAudio 서비스 재시작, 장치 변경 리스너
+- [x] f. 다중 장치 — 집계 장치 단위 테스트로 2개 이상 출력 장치 열거 확인
+- [x] g. 아이콘 — `Scripts/generate-icon.swift`로 AppIcon 생성, Assets.xcassets 적용
+- [x] h. README/워크플로 — CI와 draft 릴리스 워크플로 작성
+- [x] i. 정리/검증 — 리스너/Task 해제, 설정 debounce/flush, 빌드·테스트
+- [ ] j. 커밋/푸시, 저장소 public 전환
+
+### 고도화 상세
+
+- 프리셋 기본값을 없애고 `AppSettings.presets`를 빈 배열로 시작한다.
+- 빠른 창은 출력 장치, 볼륨, 프리셋 순서로 단순화했다. 퍼센트를 클릭하면 큰 입력 필드가 되고, 편집 중에만 배경이 나타난다.
+- 로그인 항목은 `SMAppService.mainApp` 상태를 읽어 enabled/requiresApproval/notRegistered/notFound로 표시한다. 빌드 디렉터리에서 실행하면 notFound가 될 수 있어 설치 위치 안내를 표시한다.
+- 빌드 디렉터리에서 로그인 항목 등록·해제를 실제로 수행해 목록 반영과 해제를 확인했다.
+- 집계 장치를 만드는 `AudioDeviceTests`가 통과해 다중 출력 장치 열거를 확인했다.
+- 깨우기/서비스 재시작 후에는 리스너를 재설치하고 1초 뒤 한 번 더 갱신한다.
+- 종료 시 모든 리스너, 단축키, Task를 해제하고 설정을 flush한다.
+
 ## 작업: VSLight v0.1.0 구현과 GitHub draft 준비
 
 - [x] a. 환경과 SDK 확인 — macOS 27.2, Xcode 27.2, Swift 6.4.2, CoreAudio/SwiftUI 인터페이스 확인

@@ -11,6 +11,7 @@ VSLight는 macOS 27 전용 메뉴 바 앱이다. Dock 아이콘 없이 동작하
 | 오디오 | 장치 열거, 기본 장치 전환, 볼륨/뮤트 읽기·쓰기, 변경 리스너, 프로세스 열거 | `Sources/Core/Audio/` |
 | 단축키 | Carbon 전역 단축키 등록/해제, 충돌 보고 | `Sources/Core/Hotkeys/` |
 | 설정 | JSON 영속화, 기본값, 프리셋 모델 | `Sources/Core/Settings/` |
+| 시스템 | 절전/깨우기/세션 활성화/종료 감지 | `Sources/Core/System/` |
 | 버전 | 숫자 4 금지 정책 | `Sources/Core/Version/` |
 | UI | 볼륨 카드, 장치 메뉴, 프리셋 칩, 설정 탭 | `Sources/Features/` |
 
@@ -21,6 +22,8 @@ VSLight는 macOS 27 전용 메뉴 바 앱이다. Dock 아이콘 없이 동작하
 - CoreAudio 변경 리스너는 `DispatchQueue.main`으로 등록하고 블록 안에서 `MainActor.assumeIsolated`로 상태를 갱신한다.
 - Carbon 이벤트 핸들러는 애플리케이션 이벤트 타깃의 메인 스레드에서 호출되므로 `MainActor.assumeIsolated`로 프리셋을 적용한다.
 - 앱 시작은 `AppModel.init`에서 `Task { @MainActor ... }`로 한 번 지연시켜 `NSApplication` 초기화 이후에 Carbon/CoreAudio 리스너를 설치한다.
+- `SystemLifecycle`은 `NotificationCenter.notifications(named:)` AsyncSequence를 `Task`로 구독한다. 절전/깨우기, 화면 깨우기, 세션 활성화, 앱 활성화, 종료 이벤트를 각각 처리하고 `stop()`에서 모든 Task를 취소한다.
+- CoreAudio 장치/서비스 변경은 즉시 반영하지 않고 120ms debounce Task로 합쳐 중복 갱신을 막는다.
 
 ## 3. 시스템 볼륨
 
@@ -82,6 +85,10 @@ VSLight는 macOS 27 전용 메뉴 바 앱이다. Dock 아이콘 없이 동작하
 - 프리셋 목록은 macOS 27의 `DynamicViewContent.reorderable()`을 사용한다. 같은 이유로 availability 분기가 필요 없다.
 - 메뉴 바 라벨은 `Image(systemName:variableValue:)`로 볼륨에 따라 심볼을 바꾸고, 설정에서 퍼센트 텍스트를 켤 수 있다.
 - 설정 창은 `Settings` scene과 `openSettings` 환경 액션으로 연다.
+- 메뉴 바 창은 304pt 폭으로 줄이고 제목, 버전, 중복 여백을 제거했다. 출력 장치 선택은 최상단에 둔다.
+- 퍼센트 숫자는 별도 입력 행 없이 큰 `TextField`로 직접 수정한다. 편집 중에만 옅은 배경을 표시하고, 포커스 시 전체 선택한다.
+- 프리셋이 없으면 빈 상태에서 설정의 프리셋 탭으로 이동하는 버튼만 표시한다.
+- 설정은 `SettingsTab` selection으로 열리는 탭을 지정할 수 있다. 빠른 창의 빈 프리셋 버튼은 프리셋 탭을 연다.
 
 ## 8. 앱별 볼륨
 
@@ -92,4 +99,31 @@ v0.1은 읽기 전용 프로세스 목록만 제공한다. 공개 CoreAudio API�
 - Debug는 ad-hoc 서명으로 빌드한다.
 - 배포는 Developer ID Application, Hardened Runtime, `notarytool` 공증, `stapler`를 전제로 한다.
 - App Sandbox는 사용하지 않는다. v0.1은 직접 배포 채널을 기준으로 한다.
-- GitHub Actions 릴리스 워크플로는 사용자가 제공하는 값과 함께 별도 단계에서 추가한다.
+- `.github/workflows/ci.yml`은 XcodeGen, 버전 검사, 빌드, 테스트를 실행한다.
+- `.github/workflows/release.yml`은 버전을 계산하고 draft 릴리스를 만든다. 인증서와 공증 값이 없으면 ad-hoc 서명으로 진행한다.
+
+## 10. 절전/깨우기와 상태 복구
+
+- `SystemLifecycle`은 `NSWorkspace.didWakeNotification`, `screensDidWakeNotification`, `sessionDidBecomeActiveNotification`, `NSApplication.didBecomeActiveNotification`, `willTerminateNotification`을 구독한다.
+- 깨우기 시 `AudioSystem.restartMonitoring()`으로 CoreAudio 리스너를 모두 제거하고 다시 설치한다. 절전 중 사라진 장치나 재시작된 `coreaudiod`를 반영하기 위해서다.
+- 깨우기 직후 1초 뒤 한 번 더 refresh해 장치 초기화가 늦는 경우를 보완한다.
+- `kAudioHardwarePropertyServiceRestarted`를 리스닝해 CoreAudio 서비스가 재시작되면 400ms 뒤 모니터링을 재설치한다.
+- 앱 활성화 시에도 상태를 다시 읽어 외부에서 바뀐 기본 장치와 볼륨을 반영한다.
+- 재부팅 후에는 앱 시작 시 설정을 읽고 기본 장치/볼륨을 새로 조회한다. 로그인 시 실행이 켜져 있으면 같은 경로로 복구된다.
+
+## 11. 로그인 시 실행
+
+- `SMAppService.mainApp`을 사용한다.
+- 상태는 `.enabled`, `.requiresApproval`, `.notRegistered`, `.notFound`로 구분해 UI에 표시한다.
+- 등록 직후 `.requiresApproval`이면 `SMAppService.openSystemSettingsLoginItems()`로 승인 화면을 연다.
+- 설정 화면에서 상태 새로고침과 앱 재시작을 제공한다. 재시작은 `/usr/bin/open -n`으로 새 인스턴스를 띄운 뒤 현재 인스턴스를 종료한다.
+- `/Applications` 밖에서 실행 중이면 `.notFound`가 될 수 있으므로 설치 위치 안내를 표시한다.
+
+## 12. 메모리와 정리
+
+- `AudioSystem.stop()`은 모든 CoreAudio 리스너와 debounce Task를 해제한다.
+- `HotkeyManager.stop()`은 등록된 모든 단축키와 이벤트 핸들러를 해제한다.
+- `SystemLifecycle.stop()`은 모든 AsyncSequence 구독 Task를 취소한다.
+- `AppModel.shutdown()`은 종료 알림에서 위 정리와 `SettingsStore.flush()`를 호출한다.
+- `SettingsStore`는 250ms debounce로 디스크 쓰기를 합치고, 종료 시 flush한다.
+- 반복 생성되는 CoreAudio 리스너/단축키/Task는 소유 객체가 하나씩만 보관한다.
