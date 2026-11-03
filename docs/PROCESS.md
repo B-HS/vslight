@@ -69,8 +69,9 @@
 
 - `xcodebuild -project VSLight.xcodeproj -scheme VSLight build` 성공.
 - `xcodebuild ... test` 성공.
-- 메뉴 바 팝오버 실행과 12.5% 표시를 확인했다.
+- 메뉴 바 팝오버 실행과 볼륨 퍼센트 표시를 확인했다.
 - `Scripts/probe-volume.swift`로 소수점 반영을 확인했다.
+- ⌃⌥1 테스트 프리셋을 실제 키 이벤트로 보내 0.137 적용을 확인했다.
 
 ### i. 문서
 
