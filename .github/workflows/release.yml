@@ -26,7 +26,7 @@ concurrency:
 jobs:
   release:
     name: Build & Draft Release
-    runs-on: ${{ vars.MACOS_RUNNER || 'macos-27' }}
+    runs-on: ${{ vars.MACOS_RUNNER || 'xcode-27' }}
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
