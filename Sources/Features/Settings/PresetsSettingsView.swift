@@ -10,6 +10,7 @@ struct PresetsSettingsView: View {
                 ForEach($store.settings.presets) { $preset in
                     PresetRow(preset: $preset)
                 }
+                .reorderable()
                 .onDelete { offsets in
                     store.settings.presets.remove(atOffsets: offsets)
                     model.applyHotkeys()
