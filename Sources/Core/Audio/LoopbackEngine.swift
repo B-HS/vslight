@@ -123,6 +123,9 @@ final class LoopbackEngine {
         previousDefaultUID = AudioDevice.defaultOutputID().flatMap { id in
             AudioDevice.allOutputDevices().first(where: { $0.id == id })?.uid
         }
+        if previousDefaultUID == driver.uid {
+            previousDefaultUID = output.uid
+        }
         previousDriverVolume = readVolume(driver.id)
 
         setVolume(driver.id, 1.0)

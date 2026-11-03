@@ -83,6 +83,8 @@ final class PerAppVolumeController {
         if !enabled {
             loopback.stop()
             store.settings.perAppEnabled = false
+            audio.refresh()
+            recoverIfNeeded()
             return
         }
 
@@ -329,10 +331,13 @@ final class PerAppVolumeController {
         guard !isEnabled else {
             return
         }
-        guard let defaultID = AudioDevice.defaultOutputID(),
-              audio.devices.first(where: { $0.id == defaultID })?.uid == Self.driverUID,
-              let monitorDevice
+        guard let monitorDevice,
+              let defaultID = AudioDevice.defaultOutputID()
         else {
+            return
+        }
+        let devices = AudioDevice.allOutputDevices()
+        guard devices.first(where: { $0.id == defaultID })?.uid == Self.driverUID else {
             return
         }
         let value = monitorDevice.id
