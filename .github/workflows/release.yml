@@ -335,4 +335,3 @@ jobs:
           security delete-keychain "$RUNNER_TEMP/app-signing.keychain-db" 2>/dev/null || true
           rm -Pf "$RUNNER_TEMP/build_certificate.p12" 2>/dev/null || true
           rm -f "$RUNNER_TEMP/notarize.zip" 2>/dev/null || true
-
