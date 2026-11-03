@@ -9,6 +9,7 @@ struct PresetsSettingsView: View {
             List {
                 ForEach($store.settings.presets) { $preset in
                     PresetRow(preset: $preset)
+                        .listRowInsets(EdgeInsets(top: 6, leading: 10, bottom: 6, trailing: 10))
                 }
                 .reorderable()
                 .onDelete { offsets in
@@ -46,16 +47,19 @@ struct PresetRow: View {
     var body: some View {
         HStack(spacing: 10) {
             TextField("이름", text: $preset.name)
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 104)
+                .textFieldStyle(.plain)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
+                .frame(width: 126)
 
             Slider(value: $preset.volume, in: 0...1)
-                .frame(minWidth: 90)
+                .frame(minWidth: 110)
 
             Text(preset.volumeText + "%")
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
-                .frame(width: 52, alignment: .trailing)
+                .frame(width: 54, alignment: .trailing)
 
             HotkeyRecorderView(hotkey: $preset.hotkey)
 
@@ -65,6 +69,6 @@ struct PresetRow: View {
                     .help(failure)
             }
         }
-        .padding(.vertical, 3)
+        .frame(minHeight: 34)
     }
 }
