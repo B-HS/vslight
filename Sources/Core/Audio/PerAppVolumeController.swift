@@ -291,7 +291,7 @@ final class PerAppVolumeController {
         }
 
         driverStep = 3
-        try? await Task.sleep(for: .milliseconds(250))
+        try? await Task.sleep(for: .milliseconds(1500))
 
         driverStep = 4
         let installed = await waitForDriverInstalled(previous: previousDevices)
@@ -334,7 +334,7 @@ final class PerAppVolumeController {
         }
 
         driverStep = 3
-        try? await Task.sleep(for: .milliseconds(250))
+        try? await Task.sleep(for: .milliseconds(1800))
 
         driverStep = 4
         let removed = await waitForDriverRemoved()
@@ -387,29 +387,26 @@ final class PerAppVolumeController {
     private func waitForDriverInstalled(
         previous: (output: AudioObjectID?, input: AudioObjectID?)
     ) async -> Bool {
-        for _ in 0..<18 {
-            try? await Task.sleep(for: .milliseconds(100))
-            audio.refresh()
-            let current = driverDeviceIDs()
-            guard let output = current.output, let input = current.input else {
-                continue
-            }
-            if output != previous.output || input != previous.input {
-                return true
-            }
+        audio.refresh()
+        let current = driverDeviceIDs()
+        if let output = current.output,
+           let input = current.input,
+           output != previous.output || input != previous.input {
+            return true
         }
+
+        try? await Task.sleep(for: .milliseconds(800))
         audio.refresh()
         return hasDriverDevices()
     }
 
     private func waitForDriverRemoved() async -> Bool {
-        for _ in 0..<18 {
-            try? await Task.sleep(for: .milliseconds(100))
-            audio.refresh()
-            if !driverOutputPresent(), !driverInputPresent(), !driverFilesPresent {
-                return true
-            }
+        audio.refresh()
+        if !driverOutputPresent(), !driverInputPresent(), !driverFilesPresent {
+            return true
         }
+
+        try? await Task.sleep(for: .milliseconds(800))
         audio.refresh()
         return !driverOutputPresent() && !driverInputPresent() && !driverFilesPresent
     }
