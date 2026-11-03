@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'feat/**']
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '.github/workflows/release.yml'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build & Test
+    # VSLight targets macOS 27. If the hosted macos-27 image is unavailable,
+    # switch this job to a self-hosted Mac with Xcode 27 installed.
+    runs-on: ${{ vars.MACOS_RUNNER || 'macos-27' }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Show toolchain
+        run: |
+          swift --version
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Check version policy
+        run: bash Scripts/check-version.sh
+
+      - name: Generate project
+        run: xcodegen generate --spec project.yml
+
+      - name: Cache build
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        with:
+          path: build
+          key: ${{ runner.os }}-xcode-${{ hashFiles('project.yml', 'Sources/**', 'Tests/**') }}
+          restore-keys: |
+            ${{ runner.os }}-xcode-
+
+      - name: Build
+        run: |
+          xcodebuild -project VSLight.xcodeproj -scheme VSLight \
+            -configuration Debug -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO build
+
+      - name: Test
+        run: |
+          xcodebuild -project VSLight.xcodeproj -scheme VSLight \
+            -configuration Debug -derivedDataPath build \
+            -destination 'platform=macOS' test
