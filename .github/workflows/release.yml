@@ -12,9 +12,6 @@ on:
           - patch
           - minor
           - major
-  push:
-    tags:
-      - 'v*'
 
 permissions:
   contents: write
