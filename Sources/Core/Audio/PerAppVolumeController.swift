@@ -7,6 +7,7 @@ import Observation
 @Observable
 final class PerAppVolumeController {
     static let driverUID = "com.bhs.vslight.driver.device"
+    static let driverInputUID = "com.bhs.vslight.driver.input"
     static let appVolumesSelector: AudioObjectPropertySelector = 0x6170766C
 
     let audio: AudioSystem
@@ -70,10 +71,17 @@ final class PerAppVolumeController {
         }
         if isEnabled, !loopback.isRunning, driverInstalled, let monitorDevice {
             do {
-                try loopback.start(driverUID: Self.driverUID, outputUID: monitorDevice.uid)
+                try loopback.start(
+                    driverUID: Self.driverUID,
+                    driverInputUID: Self.driverInputUID,
+                    outputUID: monitorDevice.uid
+                )
                 applyGains()
             } catch {
                 lastError = error.localizedDescription
+                store.settings.perAppEnabled = false
+                restoreOutputStateIfNeeded()
+                recoverIfNeeded()
             }
         }
         if !isEnabled {
@@ -104,7 +112,11 @@ final class PerAppVolumeController {
 
         saveOutputState(for: monitorDevice)
         do {
-            try loopback.start(driverUID: Self.driverUID, outputUID: monitorDevice.uid)
+            try loopback.start(
+                driverUID: Self.driverUID,
+                driverInputUID: Self.driverInputUID,
+                outputUID: monitorDevice.uid
+            )
             store.settings.perAppEnabled = true
             applyGains()
         } catch {

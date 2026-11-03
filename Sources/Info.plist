@@ -32,6 +32,8 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright 2026 VSLight</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>VSLight reads the virtual audio driver's loopback signal to apply per-app volume.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>NSSupportsAutomaticGraphicsSwitching</key>

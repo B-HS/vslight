@@ -1,0 +1,28 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "NSMicrophoneUsageDescription" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VSLight reads the virtual audio driver's loopback signal to apply per-app volume."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VSLight はアプリごとの音量を適用するため、仮想オーディオドライバーのループバック信号を読み取ります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VSLight이 앱별 볼륨을 적용하기 위해 가상 오디오 드라이버의 루프백 신호를 읽습니다."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

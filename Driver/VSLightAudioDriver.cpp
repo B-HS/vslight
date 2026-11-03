@@ -28,6 +28,21 @@ constexpr UInt32 kMaxFrames = 8192;
 constexpr size_t kRingCapacityFrames = kSampleRate * 2;
 constexpr AudioObjectPropertySelector kAppVolumesSelector = 'apvl';
 
+aspl::StreamParameters MakeStreamParameters(aspl::Direction direction)
+{
+    aspl::StreamParameters parameters;
+    parameters.Direction = direction;
+    parameters.Format.mSampleRate = static_cast<Float64>(kSampleRate);
+    parameters.Format.mFormatID = kAudioFormatLinearPCM;
+    parameters.Format.mFormatFlags = kAudioFormatFlagIsFloat | kAudioFormatFlagIsPacked;
+    parameters.Format.mBitsPerChannel = 32;
+    parameters.Format.mChannelsPerFrame = kChannelCount;
+    parameters.Format.mBytesPerFrame = sizeof(Float32) * kChannelCount;
+    parameters.Format.mFramesPerPacket = 1;
+    parameters.Format.mBytesPerPacket = sizeof(Float32) * kChannelCount;
+    return parameters;
+}
+
 struct GainEntry
 {
     std::string bundleID;
@@ -132,6 +147,13 @@ public:
             scratchFrames_ = 0;
         }
 
+        if (scratchFrames_ == 0) {
+            const size_t clearCount = std::min<size_t>(
+                scratch_.size(),
+                static_cast<size_t>(frameCount) * kChannelCount);
+            std::fill(scratch_.begin(), scratch_.begin() + clearCount, 0.0f);
+        }
+
         const UInt32 copyChannels = std::min(channelCount, kChannelCount);
         for (UInt32 frame = 0; frame < frameCount; ++frame) {
             const size_t destination = (static_cast<size_t>(scratchFrames_ + frame) * kChannelCount);
@@ -161,7 +183,11 @@ public:
 
         UInt64 startFrame = readFrame_.load(std::memory_order_acquire);
         const UInt64 writeFrame = writeFrame_.load(std::memory_order_acquire);
-        if (startFrame == kInvalidFrame || startFrame >= writeFrame) {
+        if (startFrame == kInvalidFrame || startFrame > writeFrame) {
+            readFrame_.store(writeFrame, std::memory_order_release);
+            startFrame = writeFrame;
+        }
+        if (startFrame >= writeFrame) {
             return;
         }
 
@@ -377,8 +403,7 @@ std::shared_ptr<aspl::Driver> CreateDriver()
     auto device = std::make_shared<aspl::Device>(context, deviceParameters);
     auto handler = std::make_shared<DriverHandler>();
 
-    device->AddStreamWithControlsAsync(aspl::Direction::Output);
-    device->AddStreamAsync(aspl::Direction::Input);
+    device->AddStreamWithControlsAsync(MakeStreamParameters(aspl::Direction::Output));
     device->SetControlHandler(handler);
     device->SetIOHandler(handler);
     device->RegisterCustomProperty(
@@ -390,8 +415,26 @@ std::shared_ptr<aspl::Driver> CreateDriver()
             handler->SetAppVolumes(value);
         }));
 
+    aspl::DeviceParameters inputParameters;
+    inputParameters.Name = "VSLight Audio Input";
+    inputParameters.Manufacturer = "VSLight";
+    inputParameters.DeviceUID = "com.bhs.vslight.driver.input";
+    inputParameters.ModelUID = "com.bhs.vslight.driver";
+    inputParameters.SampleRate = kSampleRate;
+    inputParameters.ChannelCount = kChannelCount;
+    inputParameters.ZeroTimeStampPeriod = kZeroTimeStampPeriod;
+    inputParameters.EnableMixing = false;
+    inputParameters.CanBeDefault = false;
+    inputParameters.CanBeDefaultForSystemSounds = false;
+
+    auto inputDevice = std::make_shared<aspl::Device>(context, inputParameters);
+    inputDevice->AddStreamAsync(MakeStreamParameters(aspl::Direction::Input));
+    inputDevice->SetControlHandler(handler);
+    inputDevice->SetIOHandler(handler);
+
     auto plugin = std::make_shared<aspl::Plugin>(context);
     plugin->AddDevice(device);
+    plugin->AddDevice(inputDevice);
 
     return std::make_shared<aspl::Driver>(context, plugin);
 }

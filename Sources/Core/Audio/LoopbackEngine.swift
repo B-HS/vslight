@@ -98,13 +98,14 @@ final class LoopbackEngine {
     private let buffer = LoopbackBuffer(capacityFrames: 48000 * 2)
     private let queue = DispatchQueue(label: "com.bhs.vslight.loopback", qos: .userInteractive)
     private var driverDeviceID: AudioObjectID = kAudioObjectUnknown
+    private var driverInputDeviceID: AudioObjectID = kAudioObjectUnknown
     private var outputDeviceID: AudioObjectID = kAudioObjectUnknown
     private var driverProc: AudioDeviceIOProcID?
     private var outputProc: AudioDeviceIOProcID?
     private var previousDefaultUID: String?
     private var previousDriverVolume: Float?
 
-    func start(driverUID: String, outputUID: String) throws {
+    func start(driverUID: String, driverInputUID: String, outputUID: String) throws {
         guard !isRunning else {
             return
         }
@@ -114,11 +115,17 @@ final class LoopbackEngine {
         guard let driver = AudioDevice.allOutputDevices().first(where: { $0.uid == driverUID }) else {
             throw LoopbackError.driverMissing
         }
+        guard let driverInputID = AudioDevice.deviceID(forUID: driverInputUID),
+              driverInputID != kAudioObjectUnknown
+        else {
+            throw LoopbackError.driverMissing
+        }
         guard let output = AudioDevice.allOutputDevices().first(where: { $0.uid == outputUID }) else {
             throw LoopbackError.outputMissing
         }
 
         driverDeviceID = driver.id
+        driverInputDeviceID = driverInputID
         outputDeviceID = output.id
         previousDefaultUID = AudioDevice.defaultOutputID().flatMap { id in
             AudioDevice.allOutputDevices().first(where: { $0.id == id })?.uid
@@ -143,7 +150,10 @@ final class LoopbackEngine {
     }
 
     func stop() {
-        guard driverDeviceID != kAudioObjectUnknown || outputDeviceID != kAudioObjectUnknown else {
+        guard driverDeviceID != kAudioObjectUnknown
+            || driverInputDeviceID != kAudioObjectUnknown
+            || outputDeviceID != kAudioObjectUnknown
+        else {
             isRunning = false
             return
         }
@@ -164,8 +174,8 @@ final class LoopbackEngine {
             AudioDeviceDestroyIOProcID(outputDeviceID, outputProc)
         }
         if let driverProc {
-            AudioDeviceStop(driverDeviceID, driverProc)
-            AudioDeviceDestroyIOProcID(driverDeviceID, driverProc)
+            AudioDeviceStop(driverInputDeviceID, driverProc)
+            AudioDeviceDestroyIOProcID(driverInputDeviceID, driverProc)
         }
         outputProc = nil
         driverProc = nil
@@ -176,6 +186,7 @@ final class LoopbackEngine {
 
         buffer.reset()
         driverDeviceID = kAudioObjectUnknown
+        driverInputDeviceID = kAudioObjectUnknown
         outputDeviceID = kAudioObjectUnknown
         previousDefaultUID = nil
         previousDriverVolume = nil
@@ -219,7 +230,7 @@ final class LoopbackEngine {
     private func createDriverProc() throws {
         let block = Self.makeDriverIOBlock(buffer: buffer)
         var proc: AudioDeviceIOProcID?
-        let status = AudioDeviceCreateIOProcIDWithBlock(&proc, driverDeviceID, queue, block)
+        let status = AudioDeviceCreateIOProcIDWithBlock(&proc, driverInputDeviceID, queue, block)
         guard status == noErr, let proc else {
             throw LoopbackError.ioCreationFailed(status)
         }
@@ -244,7 +255,7 @@ final class LoopbackEngine {
         guard status == noErr else {
             throw LoopbackError.ioStartFailed(status)
         }
-        status = AudioDeviceStart(driverDeviceID, driverProc)
+        status = AudioDeviceStart(driverInputDeviceID, driverProc)
         guard status == noErr else {
             AudioDeviceStop(outputDeviceID, outputProc)
             throw LoopbackError.ioStartFailed(status)

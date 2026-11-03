@@ -100,6 +100,17 @@ struct AudioDevice: Identifiable, Hashable, Sendable {
         }
     }
 
+    static func deviceID(forUID uid: String) -> AudioObjectID? {
+        let address = audioPropertyAddress(kAudioHardwarePropertyDevices)
+        guard let ids = try? AudioProperty.getArray(systemAudioObject, address) else {
+            return nil
+        }
+        let uidAddress = audioPropertyAddress(kAudioDevicePropertyDeviceUID)
+        return ids.first { id in
+            (try? AudioProperty.getString(id, uidAddress)) == uid
+        }
+    }
+
     static func device(id: AudioObjectID) -> AudioDevice? {
         let channels = AudioProperty.outputChannelCount(id)
         let canBeDefaultAddress = audioPropertyAddress(kAudioDevicePropertyDeviceCanBeDefaultDevice, scope: kAudioDevicePropertyScopeOutput)
