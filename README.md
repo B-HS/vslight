@@ -66,7 +66,7 @@ xcodebuild -project VSLight.xcodeproj -scheme VSLight \
 sudo ./Scripts/install-driver.sh
 ```
 
-Uninstall with `sudo ./Scripts/install-driver.sh --uninstall`.
+Uninstall with `sudo ./Scripts/install-driver.sh --uninstall`. The app's **Remove Driver** button also turns off per-app mode, restores the system output and volume, removes system and user driver copies, restarts `coreaudiod`, and clears per-app settings.
 
 The driver is built on [libASPL](https://github.com/gavv/libASPL) (MIT). It adds one IO buffer of routing latency and is not App Store compatible.
 

@@ -9,3 +9,5 @@ xcuserdata/
 .env
 .env.*
 !.env.example
+Driver/vendor/
+Driver/build/
