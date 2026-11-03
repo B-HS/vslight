@@ -15,6 +15,7 @@
 #include <atomic>
 #include <cmath>
 #include <cstring>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -152,27 +153,32 @@ public:
         (void)client;
         (void)stream;
         (void)zeroTimestamp;
+        (void)timestamp;
 
         auto* destination = static_cast<Float32*>(bytes);
         const UInt32 frameCount = bytesCount / (sizeof(Float32) * kChannelCount);
-        const UInt64 writeFrame = writeFrame_.load(std::memory_order_acquire);
-        const UInt64 startFrame = static_cast<UInt64>(std::llround(timestamp));
-
         std::memset(destination, 0, bytesCount);
-        for (UInt32 frame = 0; frame < frameCount; ++frame) {
-            const UInt64 sourceFrame = startFrame + frame;
-            if (sourceFrame >= writeFrame) {
-                continue;
-            }
-            if (sourceFrame + kRingCapacityFrames <= writeFrame) {
-                continue;
-            }
-            const size_t source = static_cast<size_t>(sourceFrame % kRingCapacityFrames) * kChannelCount;
+
+        UInt64 startFrame = readFrame_.load(std::memory_order_acquire);
+        const UInt64 writeFrame = writeFrame_.load(std::memory_order_acquire);
+        if (startFrame == kInvalidFrame || startFrame >= writeFrame) {
+            return;
+        }
+
+        if (writeFrame - startFrame > kRingCapacityFrames) {
+            startFrame = writeFrame - kRingCapacityFrames;
+        }
+
+        const UInt64 available = writeFrame - startFrame;
+        const UInt32 framesToRead = static_cast<UInt32>(std::min<UInt64>(frameCount, available));
+        for (UInt32 frame = 0; frame < framesToRead; ++frame) {
+            const size_t source = static_cast<size_t>((startFrame + frame) % kRingCapacityFrames) * kChannelCount;
             const size_t target = static_cast<size_t>(frame) * kChannelCount;
             for (UInt32 channel = 0; channel < kChannelCount; ++channel) {
                 destination[target + channel] = ring_[source + channel];
             }
         }
+        readFrame_.store(startFrame + framesToRead, std::memory_order_release);
     }
 
     CFPropertyListRef CopyAppVolumes() const
@@ -300,9 +306,12 @@ public:
     }
 
 private:
+    static constexpr UInt64 kInvalidFrame = std::numeric_limits<UInt64>::max();
+
     void ResetIO()
     {
         writeFrame_.store(0, std::memory_order_release);
+        readFrame_.store(kInvalidFrame, std::memory_order_release);
         scratchTimestamp_ = 0.0;
         scratchFrames_ = 0;
         scratchActive_ = false;
@@ -328,6 +337,9 @@ private:
         }
 
         writeFrame_.store(startFrame + scratchFrames_, std::memory_order_release);
+        if (readFrame_.load(std::memory_order_acquire) == kInvalidFrame) {
+            readFrame_.store(startFrame, std::memory_order_release);
+        }
         scratchActive_ = false;
         scratchFrames_ = 0;
     }
@@ -335,6 +347,7 @@ private:
     std::vector<float> ring_;
     std::vector<float> scratch_;
     std::atomic<UInt64> writeFrame_ = 0;
+    std::atomic<UInt64> readFrame_ = kInvalidFrame;
     aspl::DoubleBuffer<std::vector<GainEntry>> gains_;
 
     Float64 scratchTimestamp_ = 0.0;

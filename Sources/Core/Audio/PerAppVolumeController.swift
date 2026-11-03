@@ -64,6 +64,7 @@ final class PerAppVolumeController {
         driverInstalled = audio.devices.contains { $0.uid == Self.driverUID }
         if isEnabled, !driverInstalled {
             store.settings.perAppEnabled = false
+            restoreOutputStateIfNeeded()
             recoverIfNeeded()
             return
         }
@@ -75,6 +76,9 @@ final class PerAppVolumeController {
                 lastError = error.localizedDescription
             }
         }
+        if !isEnabled {
+            restoreOutputStateIfNeeded()
+        }
         recoverIfNeeded()
     }
 
@@ -83,6 +87,7 @@ final class PerAppVolumeController {
         if !enabled {
             loopback.stop()
             store.settings.perAppEnabled = false
+            restoreOutputStateIfNeeded()
             audio.refresh()
             recoverIfNeeded()
             return
@@ -97,6 +102,7 @@ final class PerAppVolumeController {
             return
         }
 
+        saveOutputState(for: monitorDevice)
         do {
             try loopback.start(driverUID: Self.driverUID, outputUID: monitorDevice.uid)
             store.settings.perAppEnabled = true
@@ -104,22 +110,18 @@ final class PerAppVolumeController {
         } catch {
             lastError = error.localizedDescription
             store.settings.perAppEnabled = false
+            restoreOutputStateIfNeeded()
         }
     }
 
     func setMonitor(_ device: AudioDevice) {
-        store.settings.perAppMonitorUID = device.uid
-        guard isEnabled else {
-            return
+        let wasEnabled = isEnabled
+        if wasEnabled {
+            setEnabled(false)
         }
-        loopback.stop()
-        do {
-            try loopback.start(driverUID: Self.driverUID, outputUID: device.uid)
-            applyGains()
-        } catch {
-            lastError = error.localizedDescription
-            store.settings.perAppEnabled = false
-            recoverIfNeeded()
+        store.settings.perAppMonitorUID = device.uid
+        if wasEnabled {
+            setEnabled(true)
         }
     }
 
@@ -286,6 +288,8 @@ final class PerAppVolumeController {
         store.settings.perAppVolumes = [:]
         store.settings.perAppMuted = [:]
         store.settings.perAppMonitorUID = nil
+        store.settings.perAppPreviousOutputVolume = nil
+        store.settings.perAppPreviousOutputMuted = nil
     }
 
     private func driverSourceURL() -> URL? {
@@ -305,6 +309,62 @@ final class PerAppVolumeController {
             return bundleID
         }
         return "pid:\(process.pid)"
+    }
+
+    private var outputVolumeAddress: AudioObjectPropertyAddress {
+        audioPropertyAddress(kAudioDevicePropertyVolumeScalar, scope: kAudioDevicePropertyScopeOutput)
+    }
+
+    private var outputMuteAddress: AudioObjectPropertyAddress {
+        audioPropertyAddress(kAudioDevicePropertyMute, scope: kAudioDevicePropertyScopeOutput)
+    }
+
+    private func readVolume(_ device: AudioDevice) -> Float? {
+        try? AudioProperty.get(device.id, outputVolumeAddress, defaultValue: Float(0))
+    }
+
+    private func readMute(_ device: AudioDevice) -> Bool? {
+        guard let value: UInt32 = try? AudioProperty.get(device.id, outputMuteAddress, defaultValue: 0) else {
+            return nil
+        }
+        return value != 0
+    }
+
+    private func setVolume(_ device: AudioDevice, _ value: Float) {
+        try? AudioProperty.set(
+            device.id,
+            outputVolumeAddress,
+            value: min(max(value, 0), 1)
+        )
+    }
+
+    private func setMute(_ device: AudioDevice, _ muted: Bool) {
+        try? AudioProperty.set(
+            device.id,
+            outputMuteAddress,
+            value: UInt32(muted ? 1 : 0)
+        )
+    }
+
+    private func saveOutputState(for device: AudioDevice) {
+        store.settings.perAppPreviousOutputVolume = readVolume(device).map(Double.init)
+        store.settings.perAppPreviousOutputMuted = readMute(device)
+    }
+
+    private func restoreOutputStateIfNeeded() {
+        guard !isEnabled, let monitorDevice else {
+            return
+        }
+
+        if let volume = store.settings.perAppPreviousOutputVolume {
+            setVolume(monitorDevice, Float(volume))
+        }
+        if let muted = store.settings.perAppPreviousOutputMuted {
+            setMute(monitorDevice, muted)
+        }
+
+        store.settings.perAppPreviousOutputVolume = nil
+        store.settings.perAppPreviousOutputMuted = nil
     }
 
     private func runPrivileged(_ command: String, errorMessage: String) -> Bool {

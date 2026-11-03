@@ -12,6 +12,8 @@ struct AppSettings: Codable, Hashable, Sendable {
     var perAppMonitorUID: String?
     var perAppVolumes: [String: Double]
     var perAppMuted: [String: Bool]
+    var perAppPreviousOutputVolume: Double?
+    var perAppPreviousOutputMuted: Bool?
 
     init(
         presets: [VolumePreset] = [],
@@ -24,7 +26,9 @@ struct AppSettings: Codable, Hashable, Sendable {
         perAppEnabled: Bool = false,
         perAppMonitorUID: String? = nil,
         perAppVolumes: [String: Double] = [:],
-        perAppMuted: [String: Bool] = [:]
+        perAppMuted: [String: Bool] = [:],
+        perAppPreviousOutputVolume: Double? = nil,
+        perAppPreviousOutputMuted: Bool? = nil
     ) {
         self.presets = presets
         self.decimals = min(max(decimals, 0), 3)
@@ -37,6 +41,8 @@ struct AppSettings: Codable, Hashable, Sendable {
         self.perAppMonitorUID = perAppMonitorUID
         self.perAppVolumes = perAppVolumes
         self.perAppMuted = perAppMuted
+        self.perAppPreviousOutputVolume = perAppPreviousOutputVolume
+        self.perAppPreviousOutputMuted = perAppPreviousOutputMuted
     }
 
     init(from decoder: Decoder) throws {
@@ -52,5 +58,7 @@ struct AppSettings: Codable, Hashable, Sendable {
         perAppMonitorUID = try container.decodeIfPresent(String.self, forKey: .perAppMonitorUID)
         perAppVolumes = try container.decodeIfPresent([String: Double].self, forKey: .perAppVolumes) ?? [:]
         perAppMuted = try container.decodeIfPresent([String: Bool].self, forKey: .perAppMuted) ?? [:]
+        perAppPreviousOutputVolume = try container.decodeIfPresent(Double.self, forKey: .perAppPreviousOutputVolume)
+        perAppPreviousOutputMuted = try container.decodeIfPresent(Bool.self, forKey: .perAppPreviousOutputMuted)
     }
 }
