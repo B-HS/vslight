@@ -14,8 +14,15 @@ final class PerAppVolumeController {
     let loopback = LoopbackEngine()
 
     private(set) var driverInstalled = false
+    private(set) var isDriverBusy = false
     private(set) var lastError: String?
     @ObservationIgnored private var applyTask: Task<Void, Never>?
+
+    var driverFilesPresent: Bool {
+        let system = "/Library/Audio/Plug-Ins/HAL/VSLightAudioDriver.driver"
+        let user = NSHomeDirectory() + "/Library/Audio/Plug-Ins/HAL/VSLightAudioDriver.driver"
+        return FileManager.default.fileExists(atPath: system) || FileManager.default.fileExists(atPath: user)
+    }
 
     init(audio: AudioSystem, store: SettingsStore) {
         self.audio = audio
@@ -197,31 +204,94 @@ final class PerAppVolumeController {
     }
 
     func installDriver() {
-        guard let resourceURL = Bundle.main.resourceURL else {
-            lastError = String(localized: "드라이버 번들이 앱에 없습니다. Scripts/build-driver.sh를 실행하세요.")
+        guard !isDriverBusy else {
             return
         }
-        let source = resourceURL.appending(path: "VSLightAudioDriver.driver")
-        guard FileManager.default.fileExists(atPath: source.path) else {
+        guard let source = driverSourceURL() else {
             lastError = String(localized: "드라이버 번들이 앱에 없습니다. Scripts/build-driver.sh를 실행하세요.")
             return
         }
 
+        isDriverBusy = true
+        lastError = nil
         let command = [
             "mkdir -p '/Library/Audio/Plug-Ins/HAL'",
             "rm -rf '/Library/Audio/Plug-Ins/HAL/VSLightAudioDriver.driver'",
             "cp -R '\(escape(source.path))' '/Library/Audio/Plug-Ins/HAL/VSLightAudioDriver.driver'",
             "killall coreaudiod || true"
         ].joined(separator: "; ")
-        runPrivileged(command, errorMessage: String(localized: "드라이버 설치에 실패했습니다."))
+
+        guard runPrivileged(command, errorMessage: String(localized: "드라이버 설치에 실패했습니다.")) else {
+            isDriverBusy = false
+            return
+        }
+
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(1500))
+            guard let self else {
+                return
+            }
+            self.audio.refresh()
+            self.driverInstalled = self.audio.devices.contains { $0.uid == Self.driverUID }
+            if !self.driverInstalled {
+                self.lastError = String(localized: "드라이버가 아직 감지되지 않습니다. coreaudiod를 다시 시작한 뒤 다시 확인하세요.")
+            }
+            self.isDriverBusy = false
+        }
     }
 
     func uninstallDriver() {
+        guard !isDriverBusy else {
+            return
+        }
+
+        setEnabled(false)
+        recoverIfNeeded()
+        isDriverBusy = true
+        lastError = nil
+
+        let userDriver = NSHomeDirectory() + "/Library/Audio/Plug-Ins/HAL/VSLightAudioDriver.driver"
         let command = [
             "rm -rf '/Library/Audio/Plug-Ins/HAL/VSLightAudioDriver.driver'",
+            "rm -rf '\(escape(userDriver))'",
             "killall coreaudiod || true"
         ].joined(separator: "; ")
-        runPrivileged(command, errorMessage: String(localized: "드라이버 제거에 실패했습니다."))
+
+        guard runPrivileged(command, errorMessage: String(localized: "드라이버 제거에 실패했습니다.")) else {
+            isDriverBusy = false
+            return
+        }
+
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(1800))
+            guard let self else {
+                return
+            }
+            self.audio.refresh()
+            self.driverInstalled = self.audio.devices.contains { $0.uid == Self.driverUID }
+            if self.driverInstalled || self.driverFilesPresent {
+                self.lastError = String(localized: "드라이버가 아직 남아 있습니다. coreaudiod를 다시 시작한 뒤 다시 확인하세요.")
+            } else {
+                self.clearPerAppSettings()
+                self.lastError = nil
+            }
+            self.isDriverBusy = false
+        }
+    }
+
+    private func clearPerAppSettings() {
+        store.settings.perAppEnabled = false
+        store.settings.perAppVolumes = [:]
+        store.settings.perAppMuted = [:]
+        store.settings.perAppMonitorUID = nil
+    }
+
+    private func driverSourceURL() -> URL? {
+        guard let resourceURL = Bundle.main.resourceURL else {
+            return nil
+        }
+        let source = resourceURL.appending(path: "VSLightAudioDriver.driver")
+        return FileManager.default.fileExists(atPath: source.path) ? source : nil
     }
 
     func clearError() {
@@ -235,7 +305,7 @@ final class PerAppVolumeController {
         return "pid:\(process.pid)"
     }
 
-    private func runPrivileged(_ command: String, errorMessage: String) {
+    private func runPrivileged(_ command: String, errorMessage: String) -> Bool {
         lastError = nil
         let escaped = command
             .replacingOccurrences(of: "\\", with: "\\\\")
@@ -246,17 +316,9 @@ final class PerAppVolumeController {
         if let error {
             let detail = error[NSAppleScript.errorMessage] as? String ?? ""
             lastError = "\(errorMessage) \(detail)"
-            return
+            return false
         }
-
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(1200))
-            guard let self else {
-                return
-            }
-            self.audio.refresh()
-            self.refresh()
-        }
+        return true
     }
 
     private func escape(_ value: String) -> String {

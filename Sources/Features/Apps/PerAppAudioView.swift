@@ -3,6 +3,7 @@ import SwiftUI
 
 struct PerAppAudioView: View {
     @Environment(AppModel.self) private var model
+    @State private var showUninstallConfirmation = false
 
     var body: some View {
         ScrollView {
@@ -30,29 +31,52 @@ struct PerAppAudioView: View {
         .onAppear {
             model.perApp.refresh()
         }
+        .confirmationDialog(
+            "드라이버를 제거할까요?",
+            isPresented: $showUninstallConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("드라이버 제거", role: .destructive) {
+                model.perApp.uninstallDriver()
+            }
+            Button("취소", role: .cancel) {}
+        } message: {
+            Text("앱별 볼륨을 끄고 시스템 출력과 볼륨을 복원한 뒤 HAL 드라이버와 앱별 설정을 제거합니다. coreaudiod가 재시작됩니다.")
+        }
     }
 
     private var driverSection: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
-                    Image(systemName: model.perApp.driverInstalled ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                        .foregroundStyle(model.perApp.driverInstalled ? .green : .orange)
-                    Text(model.perApp.driverInstalled ? "가상 오디오 드라이버 설치됨" : "가상 오디오 드라이버가 필요합니다")
+                    if model.perApp.isDriverBusy {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: model.perApp.driverInstalled ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                            .foregroundStyle(model.perApp.driverInstalled ? .green : .orange)
+                    }
+
+                    Text(driverStatusText)
                         .font(.headline)
+
                     Spacer()
-                    if model.perApp.driverInstalled {
+
+                    if model.perApp.driverInstalled || model.perApp.driverFilesPresent {
                         Button("드라이버 제거") {
-                            model.perApp.uninstallDriver()
+                            showUninstallConfirmation = true
                         }
                         .font(.caption)
+                        .disabled(model.perApp.isDriverBusy)
                     } else {
                         Button("드라이버 설치") {
                             model.perApp.installDriver()
                         }
                         .font(.caption)
+                        .disabled(model.perApp.isDriverBusy)
                     }
                 }
+
                 Text("앱별 게인은 시스템 출력과 모니터 출력 사이를 오가는 HAL 드라이버가 담당합니다. 설치는 관리자 승인이 필요하며 coreaudiod가 재시작됩니다.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -61,6 +85,19 @@ struct PerAppAudioView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(4)
         }
+    }
+
+    private var driverStatusText: String {
+        if model.perApp.isDriverBusy {
+            return String(localized: "드라이버 작업 중...")
+        }
+        if model.perApp.driverInstalled {
+            return String(localized: "가상 오디오 드라이버 설치됨")
+        }
+        if model.perApp.driverFilesPresent {
+            return String(localized: "드라이버 파일이 남아 있습니다")
+        }
+        return String(localized: "가상 오디오 드라이버가 필요합니다")
     }
 
     private var controlsSection: some View {
@@ -73,6 +110,7 @@ struct PerAppAudioView: View {
                         set: { model.perApp.setEnabled($0) }
                     )
                 )
+                .disabled(model.perApp.isDriverBusy)
 
                 Picker(
                     "모니터 출력",
@@ -90,6 +128,7 @@ struct PerAppAudioView: View {
                     }
                 }
                 .pickerStyle(.menu)
+                .disabled(model.perApp.isDriverBusy)
 
                 if model.perApp.isEnabled {
                     Text("시스템 출력이 VSLight Audio로 전환됩니다. 메뉴 바 볼륨은 전체 게인으로 동작합니다.")
@@ -144,7 +183,7 @@ struct PerAppAudioView: View {
                 ),
                 in: 0...1
             )
-            .disabled(!model.perApp.isEnabled)
+            .disabled(!model.perApp.isEnabled || model.perApp.isDriverBusy)
 
             Text(VolumeFormatter.percent(model.perApp.volume(for: process), decimals: 0) + "%")
                 .font(.caption.monospacedDigit())
@@ -159,7 +198,7 @@ struct PerAppAudioView: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(model.perApp.isMuted(process) ? .primary : .secondary)
-            .disabled(!model.perApp.isEnabled)
+            .disabled(!model.perApp.isEnabled || model.perApp.isDriverBusy)
         }
     }
 

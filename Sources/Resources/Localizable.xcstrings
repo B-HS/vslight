@@ -1345,6 +1345,118 @@
         }
       }
     },
+    "드라이버 작업 중...": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Working with driver..."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ドライバーを処理中..."
+          }
+        }
+      }
+    },
+    "드라이버 파일이 남아 있습니다": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Driver files remain"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ドライバーファイルが残っています"
+          }
+        }
+      }
+    },
+    "드라이버를 제거할까요?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove the driver?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ドライバーを削除しますか？"
+          }
+        }
+      }
+    },
+    "앱별 볼륨을 끄고 시스템 출력과 볼륨을 복원한 뒤 HAL 드라이버와 앱별 설정을 제거합니다. coreaudiod가 재시작됩니다.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn off per-app volume, restore the system output and volume, then remove the HAL driver and per-app settings. coreaudiod restarts."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリごとの音量をオフにし、システム出力と音量を復元してから HAL ドライバーとアプリごとの設定を削除します。coreaudiod が再起動します。"
+          }
+        }
+      }
+    },
+    "취소": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キャンセル"
+          }
+        }
+      }
+    },
+    "드라이버가 아직 감지되지 않습니다. coreaudiod를 다시 시작한 뒤 다시 확인하세요.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The driver is not detected yet. Restart coreaudiod and check again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ドライバーがまだ検出されません。coreaudiod を再起動して再確認してください。"
+          }
+        }
+      }
+    },
+    "드라이버가 아직 남아 있습니다. coreaudiod를 다시 시작한 뒤 다시 확인하세요.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The driver is still present. Restart coreaudiod and check again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ドライバーがまだ残っています。coreaudiod を再起動して再確認してください。"
+          }
+        }
+      }
+    },
     "앱별 게인은 시스템 출력과 모니터 출력 사이를 오가는 HAL 드라이버가 담당합니다. 설치는 관리자 승인이 필요하며 coreaudiod가 재시작됩니다.": {
       "localizations": {
         "en": {

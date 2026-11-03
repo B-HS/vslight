@@ -138,6 +138,22 @@ TRANSLATIONS = {
     "가상 오디오 드라이버가 필요합니다": ("Virtual audio driver required", "仮想オーディオドライバーが必要です"),
     "드라이버 설치": ("Install Driver", "ドライバーをインストール"),
     "드라이버 제거": ("Remove Driver", "ドライバーを削除"),
+    "드라이버 작업 중...": ("Working with driver...", "ドライバーを処理中..."),
+    "드라이버 파일이 남아 있습니다": ("Driver files remain", "ドライバーファイルが残っています"),
+    "드라이버를 제거할까요?": ("Remove the driver?", "ドライバーを削除しますか？"),
+    "앱별 볼륨을 끄고 시스템 출력과 볼륨을 복원한 뒤 HAL 드라이버와 앱별 설정을 제거합니다. coreaudiod가 재시작됩니다.": (
+        "Turn off per-app volume, restore the system output and volume, then remove the HAL driver and per-app settings. coreaudiod restarts.",
+        "アプリごとの音量をオフにし、システム出力と音量を復元してから HAL ドライバーとアプリごとの設定を削除します。coreaudiod が再起動します。",
+    ),
+    "취소": ("Cancel", "キャンセル"),
+    "드라이버가 아직 감지되지 않습니다. coreaudiod를 다시 시작한 뒤 다시 확인하세요.": (
+        "The driver is not detected yet. Restart coreaudiod and check again.",
+        "ドライバーがまだ検出されません。coreaudiod を再起動して再確認してください。",
+    ),
+    "드라이버가 아직 남아 있습니다. coreaudiod를 다시 시작한 뒤 다시 확인하세요.": (
+        "The driver is still present. Restart coreaudiod and check again.",
+        "ドライバーがまだ残っています。coreaudiod を再起動して再確認してください。",
+    ),
     "앱별 게인은 시스템 출력과 모니터 출력 사이를 오가는 HAL 드라이버가 담당합니다. 설치는 관리자 승인이 필요하며 coreaudiod가 재시작됩니다.": (
         "A HAL driver routes audio between the system output and the monitor output. Installation requires administrator approval and restarts coreaudiod.",
         "HAL ドライバーがシステム出力とモニター出力の間でオーディオをルーティングします。インストールには管理者の承認が必要で、coreaudiod が再起動します。",

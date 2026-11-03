@@ -155,4 +155,5 @@ VSLight는 macOS 27 전용 메뉴 바 앱이다. Dock 아이콘 없이 동작하
 - `Scripts/build-driver.sh`가 libASPL을 고정 커밋으로 받아 C++17로 컴파일하고 `.driver` 번들을 만든다.
 - `Scripts/install-driver.sh`가 `/Library/Audio/Plug-Ins/HAL`에 복사하고 `coreaudiod`를 재시작한다.
 - 앱은 번들에 포함된 드라이버를 관리자 승인으로 설치하는 UI를 제공한다.
+- 제거 시 앱별 모드를 끄고 기본 출력/볼륨을 복원한 뒤 시스템·사용자 경로의 드라이버 파일을 삭제하고 `coreaudiod`를 재시작한다. 이후 감지 여부와 파일 잔존 여부를 확인하고 앱별 설정을 초기화한다.
 - Developer ID 릴리스에서는 드라이버도 같은 인증서로 서명한다. 공증은 앱 번들 전체에 적용된다.
