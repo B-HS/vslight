@@ -68,9 +68,7 @@ struct VolumeCardView: View {
         .glassEffect(.regular, in: .rect(cornerRadius: 16))
         .onAppear(perform: syncDraft)
         .onChange(of: model.audio.volume) { _, _ in
-            if !isEditing {
-                syncDraft()
-            }
+            endEditing()
         }
         .onChange(of: model.store.settings.decimals) { _, _ in
             if !isEditing {
@@ -79,14 +77,22 @@ struct VolumeCardView: View {
         }
     }
 
+    private var volumeText: String {
+        VolumeFormatter.percent(model.audio.volume, decimals: model.store.settings.decimals)
+    }
+
     private func syncDraft() {
-        draft = VolumeFormatter.percent(model.audio.volume, decimals: model.store.settings.decimals)
+        draft = volumeText
     }
 
     private func commit() {
-        if let value = VolumeFormatter.parsePercent(draft), abs(value - model.audio.volume) > 0.0005 {
+        if draft != volumeText, let value = VolumeFormatter.parsePercent(draft) {
             model.setVolume(value)
         }
+        endEditing()
+    }
+
+    private func endEditing() {
         syncDraft()
         isEditing = false
     }

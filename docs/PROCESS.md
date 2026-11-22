@@ -9,6 +9,16 @@
 - `~/.claude/convention/security.md`
 - `docs/tasks/vslight-sdk-research.md`
 
+## 작업: v0.1.3 볼륨 숫자 입력란 실시간 반영
+
+- [x] 재현 — `Scripts/verify-volume-card.sh`, 수정 전 18개 검사 중 8개 실패
+- [x] 수정 — 볼륨이 바뀌면 입력란 포커스를 풀고 숫자를 현재 볼륨으로 맞춤, 수정한 입력만 적용
+- [x] 검증 — 재현 스크립트 18개 통과, Debug 빌드와 12개 단위 테스트 통과
+- [x] 수정 커밋과 푸시
+- [ ] v0.1.3 버전과 릴리스 노트 커밋
+- [ ] Release 워크플로 실행과 draft 확인
+- [ ] 최종 체크섬 갱신
+
 ## 작업: v0.1.0 다국어와 앱별 볼륨 드라이버
 
 - [x] README를 영어로 간결하게 정리 — 버전 정책 문단 제거
