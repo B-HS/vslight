@@ -15,9 +15,10 @@
 - [x] 수정 — 볼륨이 바뀌면 입력란 포커스를 풀고 숫자를 현재 볼륨으로 맞춤, 수정한 입력만 적용
 - [x] 검증 — 재현 스크립트 18개 통과, Debug 빌드와 12개 단위 테스트 통과
 - [x] 수정 커밋과 푸시
-- [ ] v0.1.3 버전과 릴리스 노트 커밋
-- [ ] Release 워크플로 실행과 draft 확인
-- [ ] 최종 체크섬 갱신
+- [x] v0.1.3 버전과 릴리스 노트 커밋 — `MARKETING_VERSION` 0.1.3, `CURRENT_PROJECT_VERSION` 5
+- [x] Release 워크플로 실행과 draft 확인 — run 45009337750, v0.1.3 (11), 공증 Accepted, draft 생성
+- [x] 최종 체크섬 갱신 — 노트와 draft 본문에 SHA256 반영, zip 재계산값 일치
+- [ ] 메뉴 막대 팝오버 수동 확인 후 draft 공개 — `docs/quality-assurance/volume-card.md`, 사용자 확인 대기
 
 ## 작업: v0.1.0 다국어와 앱별 볼륨 드라이버
 
