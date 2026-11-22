@@ -9,6 +9,17 @@
 - `~/.claude/convention/security.md`
 - `docs/tasks/vslight-sdk-research.md`
 
+## 작업: v0.1.5 입력란 밖 클릭 시 편집 종료
+
+- [x] 재확인 — 사용자 화면에서 그대로라는 보고, 실행 중이던 앱은 `build/`의 0.1.2 Debug 빌드
+- [x] 수정 — 편집 중 입력란 밖을 클릭하면 포커스 해제, 입력값은 Return으로만 적용
+- [x] 검증 — `MenuBarExtraWindow` 안에서 24개 검사 통과, Debug 빌드와 12개 단위 테스트 통과
+- [x] 수정 커밋과 푸시 — `1ce1d11`
+- [x] Release 워크플로 실행 — run 45011417740, v0.1.3이 이미 공개되어 v0.1.5 (12) draft가 새로 생성됨, 공증 Accepted
+- [x] v0.1.5 버전과 릴리스 노트 — `MARKETING_VERSION` 0.1.5, `CURRENT_PROJECT_VERSION` 6, v0.1.3 노트는 공개본으로 복원, draft 본문과 SHA256 반영
+- [x] 실행 중인 앱 교체 — `build/`의 Debug 빌드를 수정본으로 다시 빌드해 실행
+- [ ] 실제 앱 수동 확인 후 v0.1.5 draft 공개 — `docs/quality-assurance/volume-card.md`, 사용자 확인 대기
+
 ## 작업: v0.1.3 볼륨 숫자 입력란 실시간 반영
 
 - [x] 재현 — `Scripts/verify-volume-card.sh`, 수정 전 18개 검사 중 8개 실패
@@ -18,12 +29,7 @@
 - [x] v0.1.3 버전과 릴리스 노트 커밋 — `MARKETING_VERSION` 0.1.3, `CURRENT_PROJECT_VERSION` 5
 - [x] Release 워크플로 실행과 draft 확인 — run 45009337750, v0.1.3 (11), 공증 Accepted, draft 생성
 - [x] 최종 체크섬 갱신 — 노트와 draft 본문에 SHA256 반영, zip 재계산값 일치
-- [x] 재확인 — 사용자 화면에서 그대로라는 보고, 실행 중이던 앱은 `build/`의 0.1.2 Debug 빌드
-- [x] 입력란 밖 클릭 시 편집 종료 — 마우스 다운 로컬 모니터, 입력값은 Return으로만 적용
-- [x] 검증 — `MenuBarExtraWindow` 안에서 24개 검사 통과, Debug 빌드와 12개 단위 테스트 통과
-- [ ] 수정 커밋과 푸시, `build/` Debug 빌드로 실행 중인 앱 교체
-- [ ] Release 워크플로 재실행으로 v0.1.3 draft 갱신, 최종 체크섬 갱신
-- [ ] 실제 앱 수동 확인 후 draft 공개 — `docs/quality-assurance/volume-card.md`, 사용자 확인 대기
+- [x] 공개 — 사용자가 2026-11-22 18:57에 v0.1.3 draft 공개, 태그는 `2f1c1f2`
 
 ## 작업: v0.1.0 다국어와 앱별 볼륨 드라이버
 
