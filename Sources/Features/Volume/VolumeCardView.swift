@@ -4,6 +4,7 @@ import SwiftUI
 struct VolumeCardView: View {
     @Environment(AppModel.self) private var model
     @State private var draft: String = ""
+    @State private var outsideClickMonitor: Any?
     @FocusState private var isEditing: Bool
 
     var body: some View {
@@ -26,12 +27,9 @@ struct VolumeCardView: View {
                     .onSubmit(commit)
                     .onChange(of: isEditing) { _, focused in
                         if focused {
-                            syncDraft()
-                            Task { @MainActor in
-                                NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
-                            }
+                            beginEditing()
                         } else {
-                            commit()
+                            endEditing()
                         }
                     }
 
@@ -67,6 +65,7 @@ struct VolumeCardView: View {
         .padding(12)
         .glassEffect(.regular, in: .rect(cornerRadius: 16))
         .onAppear(perform: syncDraft)
+        .onDisappear(perform: endEditing)
         .onChange(of: model.audio.volume) { _, _ in
             endEditing()
         }
@@ -85,6 +84,33 @@ struct VolumeCardView: View {
         draft = volumeText
     }
 
+    private func beginEditing() {
+        syncDraft()
+        Task { @MainActor in
+            NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
+        }
+        guard outsideClickMonitor == nil else {
+            return
+        }
+        outsideClickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]) { event in
+            if !isInsideEditedField(event) {
+                endEditing()
+            }
+            return event
+        }
+    }
+
+    private func isInsideEditedField(_ event: NSEvent) -> Bool {
+        guard let window = NSApp.keyWindow,
+              event.window === window,
+              let editor = window.firstResponder as? NSTextView,
+              let field = editor.delegate as? NSView
+        else {
+            return false
+        }
+        return field.convert(field.bounds, to: nil).contains(event.locationInWindow)
+    }
+
     private func commit() {
         if draft != volumeText, let value = VolumeFormatter.parsePercent(draft) {
             model.setVolume(value)
@@ -95,5 +121,9 @@ struct VolumeCardView: View {
     private func endEditing() {
         syncDraft()
         isEditing = false
+        if let outsideClickMonitor {
+            NSEvent.removeMonitor(outsideClickMonitor)
+        }
+        outsideClickMonitor = nil
     }
 }

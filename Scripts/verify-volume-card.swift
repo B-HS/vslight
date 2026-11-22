@@ -45,47 +45,57 @@ final class AppModel {
 private let cardOuterPadding: CGFloat = 12
 private let cardInnerPadding: CGFloat = 12
 private let sliderHitHeight: CGFloat = 20
+private let emptyAreaPoint = NSPoint(x: 4, y: 4)
+private let scenarioAttempts = 3
+
+@MainActor
+let harnessModel = AppModel()
 
 @MainActor
 final class VolumeCardHarness {
-    private let model = AppModel()
-    private let window: NSWindow
+    private let model = harnessModel
+    private var popover: NSWindow?
+    private var lines: [String] = []
+    private var scenarioFailures: [String] = []
     private var failures: [String] = []
-
-    init() {
-        let hostingView = NSHostingView(
-            rootView: VolumeCardView()
-                .environment(model)
-                .padding(cardOuterPadding)
-                .frame(width: 304)
-        )
-        window = NSWindow(
-            contentRect: NSRect(origin: NSPoint(x: 80, y: 80), size: hostingView.fittingSize),
-            styleMask: [.titled],
-            backing: .buffered,
-            defer: false
-        )
-        window.contentView = hostingView
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-    }
 
     func run() async -> [String] {
         await settle()
-        guard textField != nil, sliderFrame != nil else {
-            dumpHierarchy(window.contentView, depth: 0)
-            return ["TextField 또는 Slider 를 찾지 못했습니다."]
+        await openPopover()
+        guard let popover else {
+            return ["메뉴 막대 팝오버를 열지 못했습니다. 터미널에 손쉬운 사용 권한이 필요합니다."]
         }
-        print("key window: \(window.isKeyWindow)")
+        print("창: \(Swift.type(of: popover)), 열자마자 입력란 포커스: \(isFieldFocused)")
 
-        await sliderWhileFocused()
-        await sliderKeepsUpdatingAfterRelease()
-        await externalChangeWhileFocused()
-        await typeAndSubmit()
-        await typeThenSlider()
-        await typeThenBlur()
-        await focusThenBlurWithoutEdit()
+        await scenario("포커스 중 슬라이더", sliderWhileFocused)
+        await scenario("포커스 해제 후 슬라이더", sliderKeepsUpdatingAfterRelease)
+        await scenario("포커스 중 외부 볼륨 변경", externalChangeWhileFocused)
+        await scenario("입력 후 Return", typeAndSubmit)
+        await scenario("입력 도중 슬라이더", typeThenSlider)
+        await scenario("수정 없이 밖을 클릭", clickOutsideWithoutEdit)
+        await scenario("입력 도중 밖을 클릭", typeThenClickOutside)
+        await scenario("입력 도중 포커스 이동", typeThenBlur)
+        await scenario("수정 없이 포커스 이동", focusThenBlurWithoutEdit)
         return failures
+    }
+
+    private func scenario(_ name: String, _ body: () async -> Void) async {
+        for _ in 0..<scenarioAttempts {
+            if popover?.isVisible != true {
+                await openPopover()
+            }
+            lines = []
+            scenarioFailures = []
+            await body()
+            guard popover?.isVisible == true else {
+                continue
+            }
+            lines.forEach { print($0) }
+            failures += scenarioFailures
+            return
+        }
+        print("FAIL  \(name): 검사 도중 팝오버가 닫혔습니다.")
+        failures.append(name)
     }
 
     private func sliderWhileFocused() async {
@@ -106,7 +116,7 @@ final class VolumeCardHarness {
         await clickSlider(at: 0.7)
         await clickSlider(at: 0.2)
         check("포커스 해제 후에도 숫자가 계속 반영됨", fieldText == expectedText, "field=\(fieldText) expected=\(expectedText)")
-        window.makeFirstResponder(nil)
+        popover?.makeFirstResponder(nil)
         await settle()
         check("창 포커스 이동 후에도 슬라이더 값 유지", abs(model.audio.volume - 0.5) > 0.05 && fieldText == expectedText, "volume=\(model.audio.volume) field=\(fieldText)")
     }
@@ -145,30 +155,51 @@ final class VolumeCardHarness {
         check("입력 도중 슬라이더 변경이 숫자에 반영됨", fieldText == expectedText, "field=\(fieldText) expected=\(expectedText)")
     }
 
+    private func clickOutsideWithoutEdit() async {
+        await reset(volume: 0.5, decimals: 1)
+        await focusField()
+        check("밖을 클릭하기 전 포커스", isFieldFocused)
+        await click(at: emptyAreaPoint)
+        check("밖을 클릭하면 포커스 해제", !isFieldFocused)
+        check("밖을 클릭해도 볼륨을 바꾸지 않음", model.appliedVolumes.isEmpty && fieldText == "50.0", "applied=\(model.appliedVolumes) field=\(fieldText)")
+        await clickSlider(at: 0.7)
+        check("밖을 클릭한 뒤 슬라이더 변경이 숫자에 반영됨", fieldText == expectedText && fieldText != "50.0", "field=\(fieldText) expected=\(expectedText)")
+    }
+
+    private func typeThenClickOutside() async {
+        await reset(volume: 0.5, decimals: 1)
+        await focusField()
+        type("30")
+        await settle()
+        await click(at: emptyAreaPoint)
+        check("입력 도중 밖을 클릭하면 포커스 해제", !isFieldFocused)
+        check("입력 도중 밖을 클릭하면 현재 볼륨으로 되돌아감", model.appliedVolumes.isEmpty && fieldText == "50.0", "applied=\(model.appliedVolumes) field=\(fieldText)")
+    }
+
     private func typeThenBlur() async {
         await reset(volume: 0.5, decimals: 1)
         await focusField()
         type("30")
         await settle()
-        window.makeFirstResponder(nil)
+        popover?.makeFirstResponder(nil)
         await settle()
-        check("입력 후 포커스를 잃으면 입력값 적용", abs(model.audio.volume - 0.3) < 0.0001 && fieldText == "30.0", "volume=\(model.audio.volume) field=\(fieldText)")
+        check("입력 도중 포커스를 잃으면 현재 볼륨으로 되돌아감", model.appliedVolumes.isEmpty && fieldText == "50.0", "applied=\(model.appliedVolumes) field=\(fieldText)")
     }
 
     private func focusThenBlurWithoutEdit() async {
         await reset(volume: 0.637, decimals: 0)
         await focusField()
-        window.makeFirstResponder(nil)
+        popover?.makeFirstResponder(nil)
         await settle()
         check("수정 없이 포커스를 잃으면 볼륨을 바꾸지 않음", model.appliedVolumes.isEmpty, "applied=\(model.appliedVolumes)")
     }
 
     private var textField: NSTextField? {
-        find(NSTextField.self, in: window.contentView)
+        find(NSTextField.self, in: popover?.contentView)
     }
 
     private var sliderFrame: NSRect? {
-        guard let bounds = window.contentView?.bounds else {
+        guard let bounds = popover?.contentView?.bounds else {
             return nil
         }
         let inset = cardOuterPadding + cardInnerPadding
@@ -184,14 +215,33 @@ final class VolumeCardHarness {
     }
 
     private var isFieldFocused: Bool {
-        guard let editor = window.firstResponder as? NSTextView else {
+        guard let editor = popover?.firstResponder as? NSTextView else {
             return false
         }
         return editor.delegate === textField
     }
 
+    private func openPopover() async {
+        let button = NSApp.windows.lazy.compactMap { self.find(NSStatusBarButton.self, in: $0.contentView) }.first
+        guard let frame = button?.window?.frame, let screenHeight = NSScreen.screens.first?.frame.height else {
+            return
+        }
+        let point = CGPoint(x: frame.midX, y: screenHeight - frame.midY)
+        let cursor = CGEvent(source: nil)?.location
+        for type in [CGEventType.leftMouseDown, .leftMouseUp] {
+            CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: point, mouseButton: .left)?.post(tap: .cghidEventTap)
+            try? await Task.sleep(for: .milliseconds(60))
+        }
+        await settle()
+        if let cursor {
+            CGWarpMouseCursorPosition(cursor)
+        }
+        await settle()
+        popover = NSApp.windows.first { $0.isVisible && self.find(NSTextField.self, in: $0.contentView) != nil }
+    }
+
     private func reset(volume: Double, decimals: Int) async {
-        window.makeFirstResponder(nil)
+        popover?.makeFirstResponder(nil)
         await settle()
         model.store.settings.decimals = decimals
         model.audio.volume = volume
@@ -211,7 +261,7 @@ final class VolumeCardHarness {
             return
         }
         NSApp.postEvent(up, atStart: false)
-        window.sendEvent(down)
+        NSApp.sendEvent(down)
         await settle()
     }
 
@@ -219,24 +269,30 @@ final class VolumeCardHarness {
         guard let frame = sliderFrame else {
             return
         }
-        let location = NSPoint(x: frame.minX + frame.width * fraction, y: frame.midY)
+        await click(at: NSPoint(x: frame.minX + frame.width * fraction, y: frame.midY))
+    }
+
+    private func click(at location: NSPoint) async {
         for type in [NSEvent.EventType.leftMouseDown, .leftMouseDragged, .leftMouseUp] {
             guard let event = mouseEvent(type, at: location) else {
                 return
             }
-            window.sendEvent(event)
+            NSApp.sendEvent(event)
             try? await Task.sleep(for: .milliseconds(40))
         }
         await settle()
     }
 
     private func mouseEvent(_ type: NSEvent.EventType, at location: NSPoint) -> NSEvent? {
-        NSEvent.mouseEvent(
+        guard let popover else {
+            return nil
+        }
+        return NSEvent.mouseEvent(
             with: type,
             location: location,
             modifierFlags: [],
             timestamp: ProcessInfo.processInfo.systemUptime,
-            windowNumber: window.windowNumber,
+            windowNumber: popover.windowNumber,
             context: nil,
             eventNumber: 0,
             clickCount: 1,
@@ -245,8 +301,8 @@ final class VolumeCardHarness {
     }
 
     private func type(_ text: String) {
-        guard let editor = window.firstResponder as? NSTextView else {
-            failures.append("입력할 필드 에디터가 없습니다: \(text)")
+        guard let editor = popover?.firstResponder as? NSTextView else {
+            check("입력할 필드 에디터 있음", false, text)
             return
         }
         editor.selectAll(nil)
@@ -254,8 +310,8 @@ final class VolumeCardHarness {
     }
 
     private func pressReturn() {
-        guard let editor = window.firstResponder as? NSTextView else {
-            failures.append("Return 을 보낼 필드 에디터가 없습니다.")
+        guard let editor = popover?.firstResponder as? NSTextView else {
+            check("Return 을 보낼 필드 에디터 있음", false)
             return
         }
         editor.doCommand(by: #selector(NSResponder.insertNewline(_:)))
@@ -266,9 +322,9 @@ final class VolumeCardHarness {
     }
 
     private func check(_ name: String, _ passed: Bool, _ detail: String = "") {
-        print("\(passed ? "PASS" : "FAIL")  \(name)\(detail.isEmpty ? "" : "  [\(detail)]")")
+        lines.append("\(passed ? "PASS" : "FAIL")  \(name)\(detail.isEmpty ? "" : "  [\(detail)]")")
         if !passed {
-            failures.append(name)
+            scenarioFailures.append(name)
         }
     }
 
@@ -286,30 +342,34 @@ final class VolumeCardHarness {
         }
         return nil
     }
+}
 
-    private func dumpHierarchy(_ view: NSView?, depth: Int) {
-        guard let view else {
-            return
-        }
-        print(String(repeating: "  ", count: depth) + String(describing: Swift.type(of: view)))
-        for subview in view.subviews {
-            dumpHierarchy(subview, depth: depth + 1)
+@MainActor
+final class HarnessDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        setvbuf(stdout, nil, _IONBF, 0)
+        NSApp.setActivationPolicy(.accessory)
+        Task { @MainActor in
+            let failures = await VolumeCardHarness().run()
+            print(failures.isEmpty ? "결과: 모두 통과" : "결과: 실패 \(failures.count)건")
+            exit(failures.isEmpty ? 0 : 1)
         }
     }
 }
 
 @main
-@MainActor
-enum VerifyVolumeCard {
-    static func main() {
-        let app = NSApplication.shared
-        app.setActivationPolicy(.accessory)
-        let harness = VolumeCardHarness()
-        Task { @MainActor in
-            let failures = await harness.run()
-            print(failures.isEmpty ? "결과: 모두 통과" : "결과: 실패 \(failures.count)건")
-            exit(failures.isEmpty ? 0 : 1)
+struct VerifyVolumeCard: App {
+    @NSApplicationDelegateAdaptor(HarnessDelegate.self) private var delegate
+
+    var body: some Scene {
+        MenuBarExtra {
+            VolumeCardView()
+                .environment(harnessModel)
+                .padding(cardOuterPadding)
+                .frame(width: 304)
+        } label: {
+            Image(systemName: "checkmark.circle")
         }
-        app.run()
+        .menuBarExtraStyle(.window)
     }
 }

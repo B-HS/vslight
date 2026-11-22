@@ -18,7 +18,12 @@
 - [x] v0.1.3 버전과 릴리스 노트 커밋 — `MARKETING_VERSION` 0.1.3, `CURRENT_PROJECT_VERSION` 5
 - [x] Release 워크플로 실행과 draft 확인 — run 45009337750, v0.1.3 (11), 공증 Accepted, draft 생성
 - [x] 최종 체크섬 갱신 — 노트와 draft 본문에 SHA256 반영, zip 재계산값 일치
-- [ ] 메뉴 막대 팝오버 수동 확인 후 draft 공개 — `docs/quality-assurance/volume-card.md`, 사용자 확인 대기
+- [x] 재확인 — 사용자 화면에서 그대로라는 보고, 실행 중이던 앱은 `build/`의 0.1.2 Debug 빌드
+- [x] 입력란 밖 클릭 시 편집 종료 — 마우스 다운 로컬 모니터, 입력값은 Return으로만 적용
+- [x] 검증 — `MenuBarExtraWindow` 안에서 24개 검사 통과, Debug 빌드와 12개 단위 테스트 통과
+- [ ] 수정 커밋과 푸시, `build/` Debug 빌드로 실행 중인 앱 교체
+- [ ] Release 워크플로 재실행으로 v0.1.3 draft 갱신, 최종 체크섬 갱신
+- [ ] 실제 앱 수동 확인 후 draft 공개 — `docs/quality-assurance/volume-card.md`, 사용자 확인 대기
 
 ## 작업: v0.1.0 다국어와 앱별 볼륨 드라이버
 
